@@ -1,5 +1,7 @@
 # cli-rs
 
+🚧 wip 🚧
+
 A library to help you quickly write expressive CLIs. Built from the ground up with advanced features like [dynamic completions](https://github.com/clap-rs/clap/issues/1232) in mind.
 
 ```rust
