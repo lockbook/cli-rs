@@ -6,6 +6,7 @@ pub type Command = Command0;
 
 pub trait Cmd {
     fn symbols(&mut self) -> Vec<&mut dyn Input>;
+    fn subcommands(&mut self) -> &mut Vec<Box<dyn Cmd>>;
     fn call_handler(self);
 
     fn parse(self)
@@ -13,15 +14,22 @@ pub trait Cmd {
         Self: Sized,
     {
         let args: Vec<String> = env::args().collect();
-        self.parse_args(&args[1..]);
+        self.parse_args(&mut 1, &args);
     }
 
-    fn parse_args(mut self, args: &[String])
+    fn parse_args(mut self, marker: &mut usize, args: &[String])
     where
         Self: Sized,
     {
-        let mut symbols = self.symbols();
+        let subcommands = self.subcommands();
+        for i in 0..subcommands.len() {}
+        for subcommand in self.subcommands() {
+            // calling this function consumes self, it needs to consume self to call the handler.
+            // I will never be able to call this on a &Cmd. Probably need to split out some stuff
+            subcommand.parse_args(marker, args);
+        }
 
+        let mut symbols = self.symbols();
         if args.len() < symbols.len() {
             for i in args.len()..symbols.len() {
                 println!(
@@ -58,6 +66,10 @@ impl Cmd for Command0 {
         if let Some(handler) = self.handler {
             handler()
         }
+    }
+
+    fn subcommands(&mut self) -> &mut Vec<Box<dyn Cmd>> {
+        &mut self.subcommands
     }
 }
 
@@ -116,6 +128,10 @@ where
             handler(self.in1);
         }
     }
+
+    fn subcommands(&mut self) -> &mut Vec<Box<dyn Cmd>> {
+        &mut self.subcommands
+    }
 }
 
 impl<T1: Input> Command1<T1> {
@@ -168,6 +184,10 @@ where
         if let Some(handler) = self.handler {
             handler(self.in1, self.in2);
         }
+    }
+
+    fn subcommands(&mut self) -> &mut Vec<Box<dyn Cmd>> {
+        &mut self.subcommands
     }
 }
 
