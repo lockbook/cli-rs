@@ -1,6 +1,6 @@
 use std::{env, process::exit};
 
-use crate::input::Input;
+use crate::input::{Input, InputType};
 
 pub type Command = Command0;
 
@@ -16,13 +16,13 @@ pub trait Cmd {
         self.parse_args(1, &args);
     }
 
-    fn parse_args(&mut self, mut marker: usize, args: &[String]) {
+    fn parse_args(&mut self, mut marker: usize, tokens: &[String]) {
         // try to match subcommands
         {
             let mut subcommand_index = None;
             let subcommands = self.subcommands();
             for i in 0..subcommands.len() {
-                if subcommands[i].name() == args[marker] {
+                if subcommands[i].name() == tokens[marker] {
                     subcommand_index = Some(i);
                 }
             }
@@ -30,14 +30,14 @@ pub trait Cmd {
             if let Some(index) = subcommand_index {
                 let mut subcommand = subcommands.remove(index);
                 marker += 1;
-                return subcommand.parse_args(marker, args);
+                return subcommand.parse_args(marker, tokens);
             }
         }
 
         // handle flags
         let mut symbols = self.symbols();
-        if args.len() < symbols.len() {
-            for i in args.len()..symbols.len() {
+        if tokens.len() < symbols.len() {
+            for i in tokens.len()..symbols.len() {
                 println!(
                     "{} \"{}\" not provided",
                     symbols[i].type_name(),
@@ -48,8 +48,39 @@ pub trait Cmd {
             exit(1);
         }
 
+        let mut remaining_tokens = (marker..tokens.len()).collect::<Vec<usize>>();
+
+        let flags = symbols
+            .iter_mut()
+            .filter(|symbol| &symbol.type_name() == &InputType::Flag);
+
+        for flag in flags {
+            for idx in remaining_tokens.clone() {
+                let consumed = flag.parse(&tokens[idx]);
+                if consumed == 1 {
+                    remaining_tokens.remove(idx);
+                }
+            }
+        }
+
         for i in 0..symbols.len() {
-            symbols[i].parse(args, i);
+            symbols[i].parse(&tokens[i]);
+        }
+
+        let mut args = symbols
+            .iter_mut()
+            .filter(|symbol| &symbol.type_name() == &InputType::Arg);
+
+        for idx in remaining_tokens {
+            match args.next() {
+                Some(arg) => {
+                    arg.parse(&tokens[idx]);
+                }
+                None => {
+                    eprintln!("Unexpected token found {}", &tokens[idx]);
+                    exit(1);
+                }
+            }
         }
 
         self.call_handler();

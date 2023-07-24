@@ -1,6 +1,6 @@
 use std::{process::exit, str::FromStr};
 
-use crate::input::Input;
+use crate::input::{Input, InputType};
 
 #[derive(Default)]
 pub struct Arg<T: FromStr> {
@@ -25,12 +25,16 @@ where
 }
 
 impl<T: FromStr> Input for Arg<T> {
-    fn parse(&mut self, args: &[String], offset: usize) -> usize {
-        if args[offset].len() > 2 && &args[offset][0..1] == "-" && &args[offset][0..2] == "--" {
-            return 0;
+    fn parse(&mut self, token: &str) -> usize {
+        if token.len() > 2 && &token[0..1] == "-" && &token[0..2] == "--" {
+            eprintln!(
+                "unexpected flag found {} while looking for argument {}",
+                token, self.name
+            );
+            exit(1);
         }
-        self.value = Some(args[offset].parse().unwrap_or_else(|_| {
-            println!("{} cannot be parsed for {}", args[offset], self.name);
+        self.value = Some(token.parse().unwrap_or_else(|_| {
+            eprintln!("{} cannot be parsed for {}", token, self.name);
             exit(1);
         }));
 
@@ -41,7 +45,7 @@ impl<T: FromStr> Input for Arg<T> {
         self.name.clone()
     }
 
-    fn type_name(&self) -> String {
-        "Arg".to_string()
+    fn type_name(&self) -> InputType {
+        InputType::Arg
     }
 }

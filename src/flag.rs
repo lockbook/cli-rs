@@ -1,6 +1,6 @@
 use std::{process::exit, str::FromStr};
 
-use crate::input::Input;
+use crate::input::{Input, InputType};
 
 // todo existence
 // todo short flags with a space
@@ -29,9 +29,9 @@ impl<T: FromStr> Flag<T> {
 }
 
 impl<T: FromStr> Input for Flag<T> {
-    fn parse(&mut self, args: &[String], offset: usize) -> usize {
-        let token = &args[offset];
-
+    // todo should probably just take a token instead, unless required
+    // for short flags with a space
+    fn parse(&mut self, token: &str) -> usize {
         // make it safe to index anywhere
         let min_size = self.name.len() + 4; // --, =, and the value
         if token.len() < min_size {
@@ -49,7 +49,7 @@ impl<T: FromStr> Input for Flag<T> {
             let value = &token[eq_idx..].to_string();
 
             self.value = Some(value.parse().unwrap_or_else(|_| {
-                println!("{} cannot be parsed for {}", args[offset], self.name);
+                println!("{} cannot be parsed for {}", token, self.name);
                 exit(1);
             }));
 
@@ -63,7 +63,7 @@ impl<T: FromStr> Input for Flag<T> {
         self.name.clone()
     }
 
-    fn type_name(&self) -> String {
-        "Flag".to_string()
+    fn type_name(&self) -> InputType {
+        InputType::Flag
     }
 }
