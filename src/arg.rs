@@ -20,7 +20,7 @@ where
     }
 
     pub fn get(&self) -> &T {
-        &self.value.as_ref().unwrap()
+        self.value.as_ref().unwrap()
     }
 }
 
