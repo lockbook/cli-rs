@@ -21,9 +21,9 @@ pub trait Cmd {
         {
             let mut subcommand_index = None;
             let subcommands = self.subcommands();
-            for i in 0..subcommands.len() {
-                if subcommands[i].name() == tokens[marker] {
-                    subcommand_index = Some(i);
+            for (idx, subcommand) in subcommands.iter().enumerate() {
+                if subcommand.name() == tokens[marker] {
+                    subcommand_index = Some(idx);
                 }
             }
 
@@ -37,11 +37,11 @@ pub trait Cmd {
         // handle flags
         let mut symbols = self.symbols();
         if tokens.len() < symbols.len() {
-            for i in tokens.len()..symbols.len() {
+            for symbol in symbols.iter().skip(tokens.len()) {
                 println!(
                     "{} \"{}\" not provided",
-                    symbols[i].type_name(),
-                    symbols[i].display_name()
+                    symbol.type_name(),
+                    symbol.display_name()
                 )
             }
 
@@ -52,7 +52,7 @@ pub trait Cmd {
 
         let flags = symbols
             .iter_mut()
-            .filter(|symbol| &symbol.type_name() == &InputType::Flag);
+            .filter(|symbol| symbol.type_name() == InputType::Flag);
 
         for flag in flags {
             for idx in remaining_tokens.clone() {
@@ -69,7 +69,7 @@ pub trait Cmd {
 
         let mut args = symbols
             .iter_mut()
-            .filter(|symbol| &symbol.type_name() == &InputType::Arg);
+            .filter(|symbol| symbol.type_name() == InputType::Arg);
 
         for idx in remaining_tokens {
             match args.next() {
@@ -147,11 +147,12 @@ impl Command0 {
     }
 }
 
+type Callback1<T1> = Box<dyn FnMut(&T1)>;
 pub struct Command1<T1: Input> {
     name: String,
 
     subcommands: Vec<Box<dyn Cmd>>,
-    handler: Option<Box<dyn FnMut(&T1)>>,
+    handler: Option<Callback1<T1>>,
 
     in1: T1,
 }
@@ -206,11 +207,12 @@ impl<T1: Input> Command1<T1> {
     }
 }
 
+type Callback2<T1, T2> = Box<dyn FnMut(&T1, &T2)>;
 pub struct Command2<T1: Input, T2: Input> {
     name: String,
 
     subcommands: Vec<Box<dyn Cmd>>,
-    handler: Option<Box<dyn FnMut(&T1, &T2)>>,
+    handler: Option<Callback2<T1, T2>>,
 
     in1: T1,
     in2: T2,
