@@ -12,7 +12,7 @@ impl<T> Arg<T>
 where
     T: FromStr,
 {
-    pub fn new(name: &str) -> Self {
+    pub fn name(name: &str) -> Self {
         Self {
             name: name.to_string(),
             value: None,
@@ -24,11 +24,23 @@ where
     }
 }
 
+impl Arg<String> {
+    pub fn str(name: &str) -> Self {
+        Self::name(name)
+    }
+}
+
+impl Arg<i32> {
+    pub fn i32(name: &str) -> Self {
+        Self::name(name)
+    }
+}
+
 impl<T: FromStr> Input for Arg<T> {
     fn parse(&mut self, token: &str) -> usize {
         if token.len() > 2 && &token[0..1] == "-" && &token[0..2] == "--" {
             eprintln!(
-                "unexpected flag found {} while looking for argument {}",
+                "unexpected flag \"{}\" found while looking for argument \"{}\"",
                 token, self.name
             );
             exit(1);

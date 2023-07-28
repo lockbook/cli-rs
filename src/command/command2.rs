@@ -1,0 +1,56 @@
+use super::{DocInfo, ParserInfo};
+use crate::{input::Input, parser::Cmd};
+
+type Callback2<'a, T1, T2> = Box<dyn FnMut(&T1, &T2) + 'a>;
+pub struct Command2<'a, T1: Input, T2: Input> {
+    pub docs: DocInfo,
+
+    pub subcommands: Vec<Box<dyn Cmd>>,
+    pub handler: Option<Callback2<'a, T1, T2>>,
+
+    pub in1: T1,
+    pub in2: T2,
+}
+
+impl<'a, T1, T2> ParserInfo for Command2<'a, T1, T2>
+where
+    T1: Input,
+    T2: Input,
+{
+    fn symbols(&mut self) -> Vec<&mut dyn Input> {
+        vec![&mut self.in1, &mut self.in2]
+    }
+
+    fn call_handler(&mut self) {
+        if let Some(handler) = &mut self.handler {
+            handler(&self.in1, &self.in2);
+        }
+    }
+
+    fn subcommands(&mut self) -> &mut Vec<Box<dyn Cmd>> {
+        &mut self.subcommands
+    }
+
+    fn docs(&self) -> &DocInfo {
+        &self.docs
+    }
+
+    fn push_parent(&mut self, parents: &[String]) {
+        self.docs.parents.extend_from_slice(parents);
+    }
+}
+
+impl<'a, T1: Input, T2: Input> Command2<'a, T1, T2> {
+    pub fn handler<F>(mut self, handler: F) -> Self
+    where
+        F: FnMut(&T1, &T2) + 'a,
+    {
+        self.handler = Some(Box::new(handler));
+        self
+    }
+
+    pub fn subcommand<C: Cmd + 'static>(mut self, sub: C) -> Self {
+        self.subcommands.push(Box::new(sub));
+        self
+    }
+}

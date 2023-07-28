@@ -6,22 +6,22 @@
 //
 // should this describe what it wants up front, or just describe what happeend
 
-use cli_rs::{
-    arg::Arg,
-    command::{Cmd, Command},
-};
+use std::env;
+
+use cli_rs::{arg::Arg, command::Command, parser::Cmd};
 
 fn main() {
-    Command::name("lockbook")
-        .input(Arg::<String>::new("name"))
-        .handler(|name| println!("Hi {}", name.get()))
-        .parse();
-
-    // Command::name("lockbook")
-    //     .subcommand(
-    //         Command::name("edit")
-    //             .input(Arg::new("target"))
-    //             .handler(|target: Arg<String>| println!("editing target file: {}", target.get())),
-    //     )
+    // Command::name("Greeter")
+    //     .input(Arg::<String>::new("name"))
+    //     .handler(|name| println!("Hi {}", name.get()))
     //     .parse();
+
+    println!("{:?}", env::args());
+    Command::name("lockbook")
+        .subcommand(
+            Command::name("edit")
+                .input(Arg::<String>::name("target"))
+                .handler(|target| println!("editing target file: {}", target.get())),
+        )
+        .parse();
 }
