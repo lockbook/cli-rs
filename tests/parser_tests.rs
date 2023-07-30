@@ -3,6 +3,7 @@ use std::str::FromStr;
 use cli_rs::{
     arg::Arg,
     command::Command,
+    flag::Flag,
     parser::{Cmd, ParseError},
 };
 
@@ -68,6 +69,11 @@ fn missing_arg() {
     assert_eq!(age, 0);
 }
 
+#[test]
+fn arg_parsing_failure() {
+    todo!()
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum FileType {
     Folder,
@@ -101,5 +107,111 @@ fn with_custom_args() {
         .parse_args(&["todo.md".to_string(), "doc".to_string()])
         .unwrap();
 
+    assert_eq!(name, "todo.md");
     assert_eq!(ft, FileType::Document);
+}
+
+#[test]
+fn with_flags() {
+    let mut name = String::default();
+    let mut create = false;
+
+    Command::name("edit")
+        .input(Arg::str("name"))
+        .input(Flag::bool("create"))
+        .handler(|n, c| {
+            name = n.get().clone();
+            create = *c.get();
+        })
+        .parse_args(&["todo.md".to_string(), "--create=true".to_string()])
+        .unwrap();
+
+    assert_eq!(name, "todo.md");
+    assert_eq!(create, true);
+}
+
+#[test]
+fn bool_flags() {
+    let mut name = String::default();
+    let mut create = false;
+
+    Command::name("edit")
+        .input(Arg::str("name"))
+        .input(Flag::bool("create"))
+        .handler(|n, c| {
+            name = n.get().clone();
+            create = *c.get();
+        })
+        .parse_args(&["todo.md".to_string(), "--create".to_string()])
+        .unwrap();
+
+    assert_eq!(name, "todo.md");
+    assert_eq!(create, true);
+}
+
+#[test]
+fn short_flag_lower() {
+    let mut name = String::default();
+    let mut create = false;
+
+    Command::name("edit")
+        .input(Arg::str("name"))
+        .input(Flag::bool("create"))
+        .handler(|n, c| {
+            name = n.get().clone();
+            create = *c.get();
+        })
+        .parse_args(&["todo.md".to_string(), "-c".to_string()])
+        .unwrap();
+
+    assert_eq!(name, "todo.md");
+    assert_eq!(create, true);
+}
+
+#[test]
+fn short_flag_upper() {
+    let mut name = String::default();
+    let mut create = false;
+
+    Command::name("edit")
+        .input(Arg::str("name"))
+        .input(Flag::bool("create"))
+        .handler(|n, c| {
+            name = n.get().clone();
+            create = *c.get();
+        })
+        .parse_args(&["todo.md".to_string(), "-C".to_string()])
+        .unwrap();
+
+    assert_eq!(name, "todo.md");
+    assert_eq!(create, true);
+}
+
+#[test]
+fn flag_order() {
+    let mut name = String::default();
+    let mut create = false;
+
+    Command::name("edit")
+        .input(Arg::str("name"))
+        .input(Flag::bool("create"))
+        .handler(|n, c| {
+            name = n.get().clone();
+            create = *c.get();
+        })
+        .parse_args(&["todo.md".to_string(), "--create".to_string()])
+        .unwrap();
+
+    assert_eq!(name, "todo.md");
+    assert_eq!(create, true);
+}
+
+#[test]
+fn flag_parsing_failure() {
+    todo!();
+}
+
+#[test]
+fn subcommands() {
+    todo!();
 }

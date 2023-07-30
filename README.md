@@ -25,3 +25,21 @@ let docs = Arg::<Uuid>::new("target-file")
 
 cli-rs will automatically generate contextual help messages, and man pages.
 cli-rs will also generate a tiny completions file for every shell which will call your CLI, moving as much of the completion logic into Rust as possible.
+
+# spec
+
+```
+command_path --flags positional_args --flags positional_args
+```
+
+things for now
+args are all required and must be provided in order
+flags are always optional (must impl default) and can be provided out of order
+flags that aren't booleans follow the form `--key=value`
+boolean that are boolean are parsed as either `--key`, `--key=false`, or `-k`
+
+things for later:
+can define an environment variable for flag values (cli specified value, env var fallback, then Default::default())
+subcommands inherit any flags as their own flags
+additionally all boolean flags can be grouped, such as `-rf`
+list args (support for optional args)

@@ -5,9 +5,10 @@ use crate::input::{Input, InputType};
 // todo existence
 // todo short flags with a space
 // todo short flag-sets
-pub struct Flag<T: FromStr> {
+pub struct Flag<T: Default + FromStr> {
     pub name: String,
     pub value: Option<T>,
+    pub bool_flag: bool,
 }
 
 impl Flag<bool> {
@@ -15,25 +16,44 @@ impl Flag<bool> {
         Self {
             name: name.to_string(),
             value: None,
+            bool_flag: true,
         }
     }
 }
 
-impl<T: FromStr> Flag<T> {
+impl<T: FromStr + Default> Flag<T> {
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
             value: None,
+            bool_flag: false,
         }
+    }
+
+    pub fn get(&self) -> &T {
+        self.value.as_ref().unwrap()
     }
 }
 
-impl<T: FromStr> Input for Flag<T> {
-    // todo should probably just take a token instead, unless required
+impl<T: FromStr + Default> Input for Flag<T> {
     // for short flags with a space
+    // should probably return a Result<bool, ParseError>
     fn parse(&mut self, token: &str) -> usize {
+        // just handle the short flag first
+        if token.len() == 2 && self.bool_flag {
+            if &token[0..1] != "-" {
+                // todo should this be an error?
+                return 0;
+            }
+
+            if token[1..2].to_uppercase() == self.name[0..1].to_uppercase() {
+                self.value = Some("true".parse().unwrap_or_else(|_| unreachable!()));
+                return 1;
+            }
+        }
+
         // make it safe to index anywhere
-        let min_size = self.name.len() + 4; // --, =, and the value
+        let min_size = self.name.len() + 2; // --
         if token.len() < min_size {
             return 0;
         }
@@ -46,13 +66,18 @@ impl<T: FromStr> Input for Flag<T> {
 
         // extract value
         if let Some(eq_idx) = token.find('=') {
-            let value = &token[eq_idx..].to_string();
+            let value = &token[eq_idx + 1..].to_string();
 
             self.value = Some(value.parse().unwrap_or_else(|_| {
-                println!("{} cannot be parsed for {}", token, self.name);
+                println!("{} cannot be parsed for {}", value, self.name);
                 exit(1);
             }));
 
+            return 1;
+        }
+
+        if self.bool_flag {
+            self.value = Some("true".parse().unwrap_or_else(|_| unreachable!()));
             return 1;
         }
 

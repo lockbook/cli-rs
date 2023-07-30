@@ -83,6 +83,7 @@ pub trait Cmd: ParserInfo {
         let mut remaining_tokens = (0..tokens.len()).collect::<Vec<usize>>();
 
         let mut symbols = self.symbols();
+
         let flags = symbols
             .iter_mut()
             .filter(|symbol| symbol.type_name() == InputType::Flag);
