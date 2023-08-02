@@ -1,4 +1,7 @@
-use crate::{input::Input, parser::Cmd};
+use crate::{
+    input::Input,
+    parser::{Cmd, ParseError},
+};
 
 use super::{command2::Command2, DocInfo, ParserInfo};
 
@@ -6,7 +9,7 @@ type Callback1<'a, T1> = Box<dyn FnMut(&T1) + 'a>;
 pub struct Command1<'a, T1: Input> {
     pub docs: DocInfo,
 
-    pub subcommands: Vec<Box<dyn Cmd>>,
+    pub subcommands: Vec<Box<dyn Cmd + 'a>>,
     pub handler: Option<Callback1<'a, T1>>,
 
     pub in1: T1,
@@ -16,8 +19,16 @@ impl<'a, T1> ParserInfo for Command1<'a, T1>
 where
     T1: Input,
 {
+    fn docs(&self) -> &DocInfo {
+        &self.docs
+    }
+
     fn symbols(&mut self) -> Vec<&mut dyn Input> {
         vec![&mut self.in1]
+    }
+
+    fn subcommand_docs(&self) -> Vec<DocInfo> {
+        self.subcommands.iter().map(|s| s.docs().clone()).collect()
     }
 
     fn call_handler(&mut self) {
@@ -26,16 +37,12 @@ where
         }
     }
 
-    fn subcommands(&mut self) -> &mut Vec<Box<dyn Cmd>> {
-        &mut self.subcommands
-    }
-
-    fn docs(&self) -> &DocInfo {
-        &self.docs
-    }
-
     fn push_parent(&mut self, parents: &[String]) {
         self.docs.parents.extend_from_slice(parents);
+    }
+
+    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+        self.subcommands[sub_idx].parse_args(tokens)
     }
 }
 

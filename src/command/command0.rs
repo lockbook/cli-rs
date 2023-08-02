@@ -1,15 +1,19 @@
-use crate::{input::Input, parser::Cmd};
+use crate::{
+    arg::Arg,
+    input::Input,
+    parser::{Cmd, ParseError},
+};
 
-use super::{command1::Command1, DocInfo, ParserInfo};
+use super::{command1::Command1, CompletionMode, DocInfo, ParserInfo};
 
 pub struct Command0<'a> {
     docs: DocInfo,
 
-    subcommands: Vec<Box<dyn Cmd>>,
+    subcommands: Vec<Box<dyn Cmd + 'a>>,
     handler: Option<Box<dyn FnMut() + 'a>>,
 }
 
-impl<'a> ParserInfo for Command0<'a> {
+impl<'a, 'b> ParserInfo for Command0<'a> {
     fn symbols(&mut self) -> Vec<&mut dyn Input> {
         vec![]
     }
@@ -20,8 +24,8 @@ impl<'a> ParserInfo for Command0<'a> {
         }
     }
 
-    fn subcommands(&mut self) -> &mut Vec<Box<dyn Cmd>> {
-        &mut self.subcommands
+    fn subcommand_docs(&self) -> Vec<DocInfo> {
+        self.subcommands.iter().map(|s| s.docs().clone()).collect()
     }
 
     fn docs(&self) -> &DocInfo {
@@ -30,6 +34,10 @@ impl<'a> ParserInfo for Command0<'a> {
 
     fn push_parent(&mut self, _parents: &[String]) {
         panic!("command0 shouldn't have a parent pushed on to it");
+    }
+
+    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+        self.subcommands[sub_idx].parse_args(tokens)
     }
 }
 
@@ -43,6 +51,18 @@ impl<'a> Command0<'a> {
             subcommands: vec![],
             handler: None,
         }
+    }
+
+    pub fn with_completions(self) -> Self {
+        let name = self.docs.name.clone();
+
+        self.subcommand(
+            Self::name("competions")
+                .input(Arg::<CompletionMode>::name("shell"))
+                .handler(move |shell| {
+                    shell.get().print_completion(&name);
+                }),
+        )
     }
 
     pub fn description(mut self, description: &str) -> Self {
@@ -68,7 +88,7 @@ impl<'a> Command0<'a> {
         self
     }
 
-    pub fn subcommand<C: Cmd + 'static>(mut self, mut sub: C) -> Self {
+    pub fn subcommand<C: Cmd + 'a>(mut self, mut sub: C) -> Self {
         sub.push_parent(&self.docs.parents);
         self.subcommands.push(Box::new(sub));
         self

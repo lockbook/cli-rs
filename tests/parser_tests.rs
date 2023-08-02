@@ -71,11 +71,18 @@ fn missing_arg() {
 
 #[test]
 fn arg_parsing_failure() {
-    todo!()
+    let mut file_type = FileType::Folder;
+
+    Command::name("arg-test")
+        .input(Arg::<FileType>::name("type"))
+        .handler(|t| file_type = *t.get())
+        .parse_args(&["not-a-doc".to_string()])
+        .unwrap_err();
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Clone, Copy)]
 pub enum FileType {
+    #[default]
     Folder,
     Document,
 }
@@ -87,7 +94,7 @@ impl FromStr for FileType {
         match s.to_lowercase().as_str() {
             "folder" | "dir" => Ok(Self::Folder),
             "doc" | "document" => Ok(Self::Document),
-            _ => unimplemented!(),
+            _ => Err(()),
         }
     }
 }
@@ -208,10 +215,48 @@ fn flag_order() {
 
 #[test]
 fn flag_parsing_failure() {
-    todo!();
+    let mut name = String::default();
+    let mut f_type = FileType::Folder;
+
+    Command::name("edit")
+        .input(Arg::str("name"))
+        .input(Flag::<FileType>::new("type"))
+        .handler(|n, t| {
+            name = n.get().clone();
+            f_type = *t.get();
+        })
+        .parse_args(&["todo.md".to_string(), "--create".to_string()])
+        .unwrap();
 }
 
 #[test]
 fn subcommands() {
-    todo!();
+    let mut path = String::default();
+
+    Command::name("lockbook")
+        .subcommand(
+            Command::name("edit")
+                .input(Arg::str("path"))
+                .handler(|n| path = n.get().clone()),
+        )
+        .parse_args(&["edit".to_string(), "path".to_string()])
+        .unwrap();
+
+    assert_eq!(path, "path");
+}
+
+#[test]
+fn subcommands_mismatch() {
+    let mut path = String::default();
+
+    Command::name("lockbook")
+        .subcommand(
+            Command::name("new")
+                .input(Arg::str("path"))
+                .handler(|n| path = n.get().clone()),
+        )
+        .parse_args(&["edit".to_string(), "path".to_string()])
+        .unwrap_err();
+
+    assert_eq!(path, String::default());
 }

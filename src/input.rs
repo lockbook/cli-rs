@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::parser::CliResult;
+
 /// parser complexities:
 ///
 /// compound flags (-am)
@@ -8,7 +10,7 @@ use std::fmt::Display;
 ///
 /// out of order flags
 pub trait Input {
-    fn parse(&mut self, token: &str) -> usize;
+    fn parse(&mut self, token: &str) -> CliResult<usize>;
     fn display_name(&self) -> String;
     fn type_name(&self) -> InputType;
 }

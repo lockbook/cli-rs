@@ -1,10 +1,14 @@
-use std::{process::exit, str::FromStr};
+use std::str::FromStr;
 
-use crate::input::{Input, InputType};
+use crate::{
+    input::{Input, InputType},
+    parser::{CliResult, ParseError},
+};
 
 #[derive(Default)]
 pub struct Arg<T: FromStr> {
     pub name: String,
+    pub description: Option<String>,
     pub value: Option<T>,
 }
 
@@ -15,8 +19,14 @@ where
     pub fn name(name: &str) -> Self {
         Self {
             name: name.to_string(),
+            description: None,
             value: None,
         }
+    }
+
+    pub fn description(mut self, description: &str) -> Self {
+        self.description = Some(description.to_string());
+        self
     }
 
     pub fn get(&self) -> &T {
@@ -37,20 +47,20 @@ impl Arg<i32> {
 }
 
 impl<T: FromStr> Input for Arg<T> {
-    fn parse(&mut self, token: &str) -> usize {
+    fn parse(&mut self, token: &str) -> CliResult<usize> {
         if token.len() > 2 && &token[0..1] == "-" && &token[0..2] == "--" {
             eprintln!(
                 "unexpected flag \"{}\" found while looking for argument \"{}\"",
                 token, self.name
             );
-            exit(1);
+            return Err(ParseError::UnexpectedToken);
         }
-        self.value = Some(token.parse().unwrap_or_else(|_| {
-            eprintln!("{} cannot be parsed for {}", token, self.name);
-            exit(1);
-        }));
+        self.value = Some(token.parse().map_err(|_| {
+            eprintln!("{} cannot be parsed for {}.", token, self.name);
+            ParseError::FromStrFailure
+        })?);
 
-        1
+        Ok(1)
     }
 
     fn display_name(&self) -> String {
