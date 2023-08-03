@@ -226,7 +226,7 @@ fn flag_parsing_failure() {
             f_type = *t.get();
         })
         .parse_args(&["todo.md".to_string(), "--create".to_string()])
-        .unwrap();
+        .unwrap_err(); // todo could be more specific here
 }
 
 #[test]
@@ -243,6 +243,19 @@ fn subcommands() {
         .unwrap();
 
     assert_eq!(path, "path");
+}
+
+#[test]
+fn subcommand_missing_arg() {
+    Command::name("lockbook")
+        .subcommand(
+            Command::name("edit")
+                .input(Arg::str("path"))
+                .handler(|_| unreachable! {}),
+        )
+        .with_completions()
+        .parse_args(&["completions".to_string()])
+        .unwrap_err();
 }
 
 #[test]

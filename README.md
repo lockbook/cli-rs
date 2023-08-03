@@ -39,6 +39,7 @@ flags that aren't booleans follow the form `--key=value`
 boolean that are boolean are parsed as either `--key`, `--key=false`, or `-k`
 
 things for later:
+support `--key value` 
 can define an environment variable for flag values (cli specified value, env var fallback, then Default::default())
 subcommands inherit any flags as their own flags
 additionally all boolean flags can be grouped, such as `-rf`

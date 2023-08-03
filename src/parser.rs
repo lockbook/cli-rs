@@ -1,4 +1,4 @@
-use std::{env, process::exit, str::FromStr};
+use std::{env, process::exit};
 
 use crate::{
     command::{CompletionMode, ParserInfo},
@@ -34,6 +34,15 @@ pub trait Cmd: ParserInfo {
             println!("usage: {cmd_path} [options], <args>");
         } else {
             println!("usage: {cmd_path} <subcommands>");
+            println!("\nsubcommands:");
+            for subcommand in subcommands {
+                print!("{}", subcommand.name);
+                if let Some(description) = subcommand.description {
+                    print!(": {description}");
+                }
+
+                println!();
+            }
         }
     }
 
@@ -41,25 +50,24 @@ pub trait Cmd: ParserInfo {
     fn parse(&mut self) {
         let args: Vec<String> = env::args().collect();
         // cmd complete shell word_idx [input]
-        if args.len() >= 4 {
+        if args.len() >= 5 {
             if args[1] == "complete" {
+                // going to need some serious tests here
                 let mut status = 0;
                 let shell = args[2].parse::<CompletionMode>().unwrap();
-                let idx = if shell == CompletionMode::Fish {
-                    args[4..].len()
+                let prompt: Vec<String> = if shell == CompletionMode::Fish {
+                    let prompt = &args[4];
+                    prompt.split(" ").map(|s| s.to_string()).collect()
                 } else {
-                    args[3].parse().unwrap()
+                    let idx = args[3].parse().unwrap();
+                    let prompt = &args[4];
+                    prompt.split(" ").map(|s| s.to_string()).take(idx).collect()
                 };
 
-                // chop off the `cmd complet shell idx` portion and truncate after the current word
-                // index
-                if args.len() > 4 + idx + 1 {
-                    // going to need some serious tests here
-                    status = match self.complete_args(&args[4..4 + idx + 1]) {
-                        Ok(()) => 0,
-                        Err(err) => err as i32,
-                    };
-                }
+                status = match self.complete_args(&prompt[1..]) {
+                    Ok(()) => 0,
+                    Err(err) => err as i32,
+                };
                 exit(status);
             }
         }
@@ -84,8 +92,9 @@ pub trait Cmd: ParserInfo {
                 }
             }
 
+            // todo check this
             if let Some(index) = subcommand_index {
-                return self.complete_args(&tokens[1..]);
+                return self.complete_subcommand(index, &tokens[1..]);
             }
 
             // print subcommands that begin with the token
@@ -109,10 +118,24 @@ pub trait Cmd: ParserInfo {
             }
             return Ok(());
         }
-
         let mut symbols = self.symbols();
 
-        let mut remaining_tokens = (0..tokens.len()).collect::<Vec<usize>>();
+        let mut positional_args_so_far = 0;
+        if tokens.len() > 1 {
+            for token in &tokens[0..tokens.len() - 1] {
+                if !token.starts_with("-") {
+                    // in a future where we manage errors more properly, this section could be
+                    // closer to how the parser works, eliminating consumed symbols and helping
+                    // the end user not see completions for flags they've already typed. Presently
+                    // that code would start outputting errors.
+                    positional_args_so_far += 1;
+                }
+            }
+        }
+
+        if tokens.len() == 0 {}
+
+        Ok(())
     }
 
     fn parse_args(&mut self, tokens: &[String]) -> CliResult<()> {
@@ -125,6 +148,7 @@ pub trait Cmd: ParserInfo {
             return Err(ParseError::HelpPrinted);
         }
 
+        // todo check this
         if tokens.len() < symbols.len() {
             for symbol in symbols.iter().skip(tokens.len()) {
                 println!(
@@ -140,51 +164,36 @@ pub trait Cmd: ParserInfo {
         // try to match subcommands
         if subcommands.len() > 0 {
             let token = &tokens[0];
-            let mut subcommand_index = None;
             for (idx, subcommand) in subcommands.iter().enumerate() {
                 if &subcommand.name == token {
-                    subcommand_index = Some(idx);
+                    return self.parse_subcommand(idx, &tokens[1..]);
                 }
             }
-
-            if let Some(index) = subcommand_index {
-                return self.parse_subcommand(index, &tokens[1..]);
-            }
         }
-
-        let mut remaining_tokens = (0..tokens.len()).collect::<Vec<usize>>();
 
         let mut symbols = self.symbols();
 
-        let flags = symbols
-            .iter_mut()
-            .filter(|symbol| symbol.type_name() == InputType::Flag);
-
-        for flag in flags {
-            for idx in remaining_tokens.clone() {
-                let consumed = flag.parse(&tokens[idx])?;
-                if consumed == 1 {
-                    remaining_tokens.remove(idx);
+        for token in tokens {
+            if token.starts_with("-") {
+                let mut token_matched = false;
+                for symbol in &mut symbols {
+                    if !symbol.parsed() && symbol.type_name() == InputType::Flag {
+                        let consumed = symbol.parse(token)?;
+                        if consumed {
+                            token_matched = true;
+                        }
+                    }
                 }
-            }
-        }
-
-        for i in 0..symbols.len() {
-            symbols[i].parse(&tokens[i])?;
-        }
-
-        let mut args = symbols
-            .iter_mut()
-            .filter(|symbol| symbol.type_name() == InputType::Arg);
-
-        for idx in remaining_tokens {
-            match args.next() {
-                Some(arg) => {
-                    arg.parse(&tokens[idx])?;
-                }
-                None => {
-                    eprintln!("Unexpected token found \"{}\"", &tokens[idx]);
+                if !token_matched {
+                    eprintln!("Unexpected flag-like token found {token}");
                     return Err(ParseError::UnexpectedToken);
+                }
+            } else {
+                'args: for symbol in &mut symbols {
+                    if !symbol.parsed() && symbol.type_name() == InputType::Arg {
+                        symbol.parse(token)?;
+                        break 'args;
+                    }
                 }
             }
         }

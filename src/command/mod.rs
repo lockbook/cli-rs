@@ -16,11 +16,12 @@ pub trait ParserInfo {
     fn symbols(&mut self) -> Vec<&mut dyn Input>;
     fn subcommand_docs(&self) -> Vec<DocInfo>;
     fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError>;
+    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError>;
     fn call_handler(&mut self);
     fn push_parent(&mut self, parents: &[String]);
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct DocInfo {
     pub(crate) name: String,
     pub(crate) description: Option<String>,
@@ -60,6 +61,7 @@ impl FromStr for CompletionMode {
 }
 
 impl CompletionMode {
+    // thanks @ad-tra
     pub fn print_completion(&self, name: &str) {
         let adapter = match self {
             CompletionMode::Bash => {
@@ -77,7 +79,9 @@ complete -o nospace -F _{name}_complete_ {name} -E
                         "#
                 )
             }
-            CompletionMode::Fish => todo!(),
+            CompletionMode::Fish => format!(
+                r#"complete -c {name} -f --condition "not __fish_seen_subcommand_from file-command non-file-command" -a '({name} complete fish 0 (commandline -cp))'"#
+            ),
             CompletionMode::Zsh => todo!(),
         };
 

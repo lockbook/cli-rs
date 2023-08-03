@@ -39,6 +39,10 @@ impl<'a, 'b> ParserInfo for Command0<'a> {
     fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
         self.subcommands[sub_idx].parse_args(tokens)
     }
+
+    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+        self.subcommands[sub_idx].parse_args(tokens)
+    }
 }
 
 impl<'a> Command0<'a> {
@@ -57,7 +61,8 @@ impl<'a> Command0<'a> {
         let name = self.docs.name.clone();
 
         self.subcommand(
-            Self::name("competions")
+            Self::name("completions")
+                .description("generate completions for a given shell")
                 .input(Arg::<CompletionMode>::name("shell"))
                 .handler(move |shell| {
                     shell.get().print_completion(&name);

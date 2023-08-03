@@ -47,7 +47,7 @@ impl Arg<i32> {
 }
 
 impl<T: FromStr> Input for Arg<T> {
-    fn parse(&mut self, token: &str) -> CliResult<usize> {
+    fn parse(&mut self, token: &str) -> CliResult<bool> {
         if token.len() > 2 && &token[0..1] == "-" && &token[0..2] == "--" {
             eprintln!(
                 "unexpected flag \"{}\" found while looking for argument \"{}\"",
@@ -60,7 +60,7 @@ impl<T: FromStr> Input for Arg<T> {
             ParseError::FromStrFailure
         })?);
 
-        Ok(1)
+        Ok(true)
     }
 
     fn display_name(&self) -> String {
@@ -69,5 +69,9 @@ impl<T: FromStr> Input for Arg<T> {
 
     fn type_name(&self) -> InputType {
         InputType::Arg
+    }
+
+    fn parsed(&self) -> bool {
+        self.value.is_some()
     }
 }

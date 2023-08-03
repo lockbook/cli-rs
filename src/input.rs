@@ -10,7 +10,8 @@ use crate::parser::CliResult;
 ///
 /// out of order flags
 pub trait Input {
-    fn parse(&mut self, token: &str) -> CliResult<usize>;
+    fn parsed(&self) -> bool;
+    fn parse(&mut self, token: &str) -> CliResult<bool>;
     fn display_name(&self) -> String;
     fn type_name(&self) -> InputType;
 }

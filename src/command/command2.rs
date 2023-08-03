@@ -42,6 +42,10 @@ where
         self.docs.parents.extend_from_slice(parents);
     }
 
+    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+        self.subcommands[sub_idx].parse_args(tokens)
+    }
+
     fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
         self.subcommands[sub_idx].parse_args(tokens)
     }
