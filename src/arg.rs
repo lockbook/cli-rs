@@ -6,13 +6,14 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct Arg<T: FromStr> {
+pub struct Arg<'a, T: FromStr> {
     pub name: String,
     pub description: Option<String>,
     pub value: Option<T>,
+    pub completor: Option<Box<dyn FnMut(&str) -> Vec<String> + 'a>>,
 }
 
-impl<T> Arg<T>
+impl<'a, T> Arg<'a, T>
 where
     T: FromStr,
 {
@@ -21,6 +22,7 @@ where
             name: name.to_string(),
             description: None,
             value: None,
+            completor: None,
         }
     }
 
@@ -32,21 +34,29 @@ where
     pub fn get(&self) -> &T {
         self.value.as_ref().unwrap()
     }
+
+    pub fn completor<F>(mut self, completor: F) -> Self
+    where
+        F: FnMut(&str) -> Vec<String> + 'a,
+    {
+        self.completor = Some(Box::new(completor));
+        self
+    }
 }
 
-impl Arg<String> {
+impl<'a> Arg<'a, String> {
     pub fn str(name: &str) -> Self {
         Self::name(name)
     }
 }
 
-impl Arg<i32> {
+impl<'a> Arg<'a, i32> {
     pub fn i32(name: &str) -> Self {
         Self::name(name)
     }
 }
 
-impl<T: FromStr> Input for Arg<T> {
+impl<'a, T: FromStr> Input for Arg<'a, T> {
     fn parse(&mut self, token: &str) -> CliResult<bool> {
         if token.len() > 2 && &token[0..1] == "-" && &token[0..2] == "--" {
             eprintln!(
@@ -73,5 +83,13 @@ impl<T: FromStr> Input for Arg<T> {
 
     fn parsed(&self) -> bool {
         self.value.is_some()
+    }
+
+    fn complete(&mut self, value: &str) -> Vec<String> {
+        if let Some(completor) = &mut self.completor {
+            completor(value)
+        } else {
+            vec![]
+        }
     }
 }

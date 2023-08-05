@@ -109,4 +109,8 @@ impl<'a, T: FromStr + Default> Input for Flag<'a, T> {
     fn parsed(&self) -> bool {
         self.value.is_some()
     }
+
+    fn complete(&mut self, value: &str) -> Vec<String> {
+        todo!()
+    }
 }

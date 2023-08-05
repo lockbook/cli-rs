@@ -11,8 +11,9 @@ pub type CliResult<T> = Result<T, ParseError>;
 pub enum ParseError {
     HelpPrinted = 1,
     MissingArg = 2,
-    UnexpectedToken = 3,
-    FromStrFailure = 4,
+    SubcommandNotFound = 3,
+    UnexpectedToken = 4,
+    FromStrFailure = 5,
 }
 
 impl<C> Cmd for C where C: ParserInfo {}
@@ -53,7 +54,6 @@ pub trait Cmd: ParserInfo {
         if args.len() >= 5 {
             if args[1] == "complete" {
                 // going to need some serious tests here
-                let mut status = 0;
                 let shell = args[2].parse::<CompletionMode>().unwrap();
                 let prompt: Vec<String> = if shell == CompletionMode::Fish {
                     let prompt = &args[4];
@@ -64,7 +64,7 @@ pub trait Cmd: ParserInfo {
                     prompt.split(" ").map(|s| s.to_string()).take(idx).collect()
                 };
 
-                status = match self.complete_args(&prompt[1..]) {
+                let status = match self.complete_args(&prompt[1..]) {
                     Ok(()) => 0,
                     Err(err) => err as i32,
                 };
@@ -111,13 +111,6 @@ pub trait Cmd: ParserInfo {
             return Ok(());
         }
 
-        // try to complete a subcommand
-        if subcommands.len() > 0 && tokens.len() == 0 {
-            for subcommand in subcommands {
-                println!("{}", subcommand.name);
-            }
-            return Ok(());
-        }
         let mut symbols = self.symbols();
 
         let mut positional_args_so_far = 0;
@@ -133,7 +126,39 @@ pub trait Cmd: ParserInfo {
             }
         }
 
-        if tokens.len() == 0 {}
+        let token = &tokens[tokens.len() - 1];
+        if token.starts_with("-") {
+            let completion_token: &str;
+            if token.starts_with("--") {
+                completion_token = &token[2..];
+            } else {
+                completion_token = &token[1..];
+            }
+            symbols
+                .iter()
+                .filter(|sym| sym.type_name() == InputType::Flag)
+                .filter(|sym| sym.display_name().starts_with(completion_token))
+                .filter_map(|sym| {
+                    if sym.type_name() == InputType::Flag {
+                        Some(sym.display_name())
+                    } else {
+                        None
+                    }
+                })
+                .for_each(|flag_name| println!("--{flag_name}"));
+        } else {
+            let arg = symbols
+                .iter_mut()
+                .filter(|sym| sym.type_name() == InputType::Arg)
+                .skip(positional_args_so_far)
+                .next();
+
+            if let Some(arg) = arg {
+                for option in arg.complete(token) {
+                    println!("{option}");
+                }
+            }
+        }
 
         Ok(())
     }
@@ -148,19 +173,6 @@ pub trait Cmd: ParserInfo {
             return Err(ParseError::HelpPrinted);
         }
 
-        // todo check this
-        if tokens.len() < symbols.len() {
-            for symbol in symbols.iter().skip(tokens.len()) {
-                println!(
-                    "{} \"{}\" not provided",
-                    symbol.type_name(),
-                    symbol.display_name()
-                );
-            }
-
-            return Err(ParseError::MissingArg);
-        }
-
         // try to match subcommands
         if subcommands.len() > 0 {
             let token = &tokens[0];
@@ -169,6 +181,9 @@ pub trait Cmd: ParserInfo {
                     return self.parse_subcommand(idx, &tokens[1..]);
                 }
             }
+
+            eprintln!("{token} is not a valid subcommand");
+            return Err(ParseError::SubcommandNotFound);
         }
 
         let mut symbols = self.symbols();
@@ -195,6 +210,13 @@ pub trait Cmd: ParserInfo {
                         break 'args;
                     }
                 }
+            }
+        }
+
+        for symbol in symbols {
+            if symbol.type_name() == InputType::Arg && !symbol.parsed() {
+                eprintln!("Missing required argument: {}", symbol.display_name());
+                return Err(ParseError::MissingArg);
             }
         }
 

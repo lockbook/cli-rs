@@ -259,6 +259,20 @@ fn subcommand_missing_arg() {
 }
 
 #[test]
+fn subcommand_arg() {
+    Command::name("cli-rs")
+        .subcommand(
+            Command::name("edit")
+                .input(Flag::<String>::new("edit"))
+                .input(Arg::<String>::name("target"))
+                .handler(|_, target| println!("editing target file: {}", target.get())),
+        )
+        .with_completions()
+        .parse_args(&["edit".to_string(), "a.md".to_string()])
+        .unwrap()
+}
+
+#[test]
 fn subcommands_mismatch() {
     let mut path = String::default();
 

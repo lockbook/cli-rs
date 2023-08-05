@@ -41,7 +41,7 @@ impl<'a, 'b> ParserInfo for Command0<'a> {
     }
 
     fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
-        self.subcommands[sub_idx].parse_args(tokens)
+        self.subcommands[sub_idx].complete_args(tokens)
     }
 }
 

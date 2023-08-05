@@ -14,6 +14,7 @@ pub trait Input {
     fn parse(&mut self, token: &str) -> CliResult<bool>;
     fn display_name(&self) -> String;
     fn type_name(&self) -> InputType;
+    fn complete(&mut self, value: &str) -> Vec<String>;
 }
 
 #[derive(Debug, PartialEq)]

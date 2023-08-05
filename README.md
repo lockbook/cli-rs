@@ -37,6 +37,7 @@ args are all required and must be provided in order
 flags are always optional (must impl default) and can be provided out of order
 flags that aren't booleans follow the form `--key=value`
 boolean that are boolean are parsed as either `--key`, `--key=false`, or `-k`
+a command can have subcommands or args & flags, but not both
 
 things for later:
 support `--key value` 
@@ -44,3 +45,4 @@ can define an environment variable for flag values (cli specified value, env var
 subcommands inherit any flags as their own flags
 additionally all boolean flags can be grouped, such as `-rf`
 list args (support for optional args)
+detect invalid configuration at runtime

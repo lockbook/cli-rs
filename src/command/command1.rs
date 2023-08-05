@@ -42,7 +42,7 @@ where
     }
 
     fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
-        self.subcommands[sub_idx].parse_args(tokens)
+        self.subcommands[sub_idx].complete_args(tokens)
     }
 
     fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
