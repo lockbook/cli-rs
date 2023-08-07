@@ -1,4 +1,4 @@
-use super::{DocInfo, ParserInfo};
+use super::{command3::Command3, DocInfo, ParserInfo};
 use crate::{
     input::Input,
     parser::{Cmd, ParseError},
@@ -60,6 +60,18 @@ impl<'a, T1: Input, T2: Input> Command2<'a, T1, T2> {
         self
     }
 
+    pub fn input<T3: Input>(self, in3: T3) -> Command3<'a, T1, T2, T3> {
+        Command3 {
+            docs: self.docs,
+            handler: None,
+
+            in1: self.in1,
+            in2: self.in2,
+            in3: in3,
+
+            subcommands: self.subcommands,
+        }
+    }
     pub fn subcommand<C: Cmd + 'static>(mut self, sub: C) -> Self {
         self.subcommands.push(Box::new(sub));
         self

@@ -69,11 +69,11 @@ impl CompletionMode {
                     r#"
 _{name}_complete_()
 {{
-    _COMP_OUTPUTSTR=\"$( {name} complete -- \"${{COMP_WORDS[*]}}\" ${{COMP_CWORD}} )\"
+    _COMP_OUTPUTSTR="$( {name} complete bash ${{COMP_CWORD}} "${{COMP_WORDS[*]}}" )"
     if test $? -ne 0; then
         return 1
     fi
-    COMPREPLY=($( echo -n \"$_COMP_OUTPUTSTR\" ))
+    COMPREPLY=($( echo -n "$_COMP_OUTPUTSTR" ))
 }}
 complete -o nospace -F _{name}_complete_ {name} -E
                         "#
@@ -82,7 +82,17 @@ complete -o nospace -F _{name}_complete_ {name} -E
             CompletionMode::Fish => format!(
                 r#"complete -c {name} -f --condition "not __fish_seen_subcommand_from file-command non-file-command" -a '({name} complete fish 0 (commandline -cp))'"#
             ),
-            CompletionMode::Zsh => todo!(),
+            CompletionMode::Zsh => format!(
+                r#"
+function _{name} {{
+    _reply_str=$( {name} complete zsh "$(($CURRENT - 1))" "${{words[*]}}" )
+    
+    _reply_arr=("${{(f)_reply_str}}") 
+    compadd -S '' -a _reply_arr 
+}}
+compdef _{name} {name}
+"#
+            ),
         };
 
         println!("{adapter}");

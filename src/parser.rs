@@ -59,9 +59,13 @@ pub trait Cmd: ParserInfo {
                     let prompt = &args[4];
                     prompt.split(" ").map(|s| s.to_string()).collect()
                 } else {
-                    let idx = args[3].parse().unwrap();
+                    let idx: usize = args[3].parse().unwrap();
                     let prompt = &args[4];
-                    prompt.split(" ").map(|s| s.to_string()).take(idx).collect()
+                    prompt
+                        .split(" ")
+                        .map(|s| s.to_string())
+                        .take(idx + 1)
+                        .collect()
                 };
 
                 let status = match self.complete_args(&prompt[1..]) {
@@ -134,18 +138,31 @@ pub trait Cmd: ParserInfo {
             } else {
                 completion_token = &token[1..];
             }
+            let value_completion = completion_token.split('=').collect::<Vec<&str>>();
+            if value_completion.len() > 1 {
+                for symbol in &mut symbols {
+                    if symbol.display_name() == value_completion[0] {
+                        for completion in symbol.complete(value_completion[1]) {
+                            println!("--{}={completion}", symbol.display_name());
+                        }
+                        return Ok(());
+                    }
+                }
+            }
+
             symbols
                 .iter()
                 .filter(|sym| sym.type_name() == InputType::Flag)
                 .filter(|sym| sym.display_name().starts_with(completion_token))
-                .filter_map(|sym| {
-                    if sym.type_name() == InputType::Flag {
-                        Some(sym.display_name())
+                .for_each(|flag| {
+                    if flag.is_bool_flag() {
+                        println!("--{}", flag.display_name());
                     } else {
-                        None
+                        println!("--{}=", flag.display_name());
                     }
-                })
-                .for_each(|flag_name| println!("--{flag_name}"));
+                });
+            // todo an interesting thing to explore later:
+            // println!(r#" _describe 'command' "('-cmd1:description1' '-cmd2:description2')" "#);
         } else {
             let arg = symbols
                 .iter_mut()

@@ -12,7 +12,7 @@ pub struct Flag<'a, T: Default + FromStr> {
     pub name: String,
     pub value: Option<T>,
     pub bool_flag: bool,
-    pub completor: Option<Box<dyn FnMut(String) -> Vec<String> + 'a>>,
+    pub completor: Option<Box<dyn FnMut(&str) -> Vec<String> + 'a>>,
 }
 
 impl<'a> Flag<'a, bool> {
@@ -42,7 +42,7 @@ impl<'a, T: FromStr + Default> Flag<'a, T> {
 
     pub fn completor<F>(mut self, completor: F) -> Self
     where
-        F: FnMut(String) -> Vec<String> + 'a,
+        F: FnMut(&str) -> Vec<String> + 'a,
     {
         self.completor = Some(Box::new(completor));
         self
@@ -111,6 +111,14 @@ impl<'a, T: FromStr + Default> Input for Flag<'a, T> {
     }
 
     fn complete(&mut self, value: &str) -> Vec<String> {
-        todo!()
+        if let Some(completor) = &mut self.completor {
+            completor(value)
+        } else {
+            vec![]
+        }
+    }
+
+    fn is_bool_flag(&self) -> bool {
+        self.bool_flag
     }
 }

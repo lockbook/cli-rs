@@ -92,4 +92,8 @@ impl<'a, T: FromStr> Input for Arg<'a, T> {
             vec![]
         }
     }
+
+    fn is_bool_flag(&self) -> bool {
+        false
+    }
 }
