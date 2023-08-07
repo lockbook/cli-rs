@@ -33,6 +33,26 @@ pub trait Cmd: ParserInfo {
         let subcommands = self.subcommand_docs();
         if subcommands.is_empty() {
             println!("usage: {cmd_path} [options], <args>");
+            println!("\nflags:");
+            for symbol in self.symbols() {
+                if symbol.type_name() == InputType::Flag {
+                    print!("--{}", symbol.display_name());
+                    if let Some(desc) = symbol.description() {
+                        print!(": {desc}");
+                    }
+                    println!();
+                }
+            }
+            println!("\nargs:");
+            for symbol in self.symbols() {
+                if symbol.type_name() == InputType::Arg {
+                    print!("{}", symbol.display_name());
+                    if let Some(desc) = symbol.description() {
+                        print!(": {desc}");
+                    }
+                    println!();
+                }
+            }
         } else {
             println!("usage: {cmd_path} <subcommands>");
             println!("\nsubcommands:");
@@ -51,29 +71,27 @@ pub trait Cmd: ParserInfo {
     fn parse(&mut self) {
         let args: Vec<String> = env::args().collect();
         // cmd complete shell word_idx [input]
-        if args.len() >= 5 {
-            if args[1] == "complete" {
-                // going to need some serious tests here
-                let shell = args[2].parse::<CompletionMode>().unwrap();
-                let prompt: Vec<String> = if shell == CompletionMode::Fish {
-                    let prompt = &args[4];
-                    prompt.split(" ").map(|s| s.to_string()).collect()
-                } else {
-                    let idx: usize = args[3].parse().unwrap();
-                    let prompt = &args[4];
-                    prompt
-                        .split(" ")
-                        .map(|s| s.to_string())
-                        .take(idx + 1)
-                        .collect()
-                };
+        if args.len() >= 5 && args[1] == "complete" {
+            // going to need some serious tests here
+            let shell = args[2].parse::<CompletionMode>().unwrap();
+            let prompt: Vec<String> = if shell == CompletionMode::Fish {
+                let prompt = &args[4];
+                prompt.split(' ').map(|s| s.to_string()).collect()
+            } else {
+                let idx: usize = args[3].parse().unwrap();
+                let prompt = &args[4];
+                prompt
+                    .split(' ')
+                    .map(|s| s.to_string())
+                    .take(idx + 1)
+                    .collect()
+            };
 
-                let status = match self.complete_args(&prompt[1..]) {
-                    Ok(()) => 0,
-                    Err(err) => err as i32,
-                };
-                exit(status);
-            }
+            let status = match self.complete_args(&prompt[1..]) {
+                Ok(()) => 0,
+                Err(err) => err as i32,
+            };
+            exit(status);
         }
 
         let status = match self.parse_args(&args[1..]) {
@@ -84,10 +102,14 @@ pub trait Cmd: ParserInfo {
     }
 
     fn complete_args(&mut self, tokens: &[String]) -> CliResult<()> {
+        if tokens.len() == 0 {
+            return Ok(());
+        }
+
         let subcommands = self.subcommand_docs();
 
         // recurse into subcommand?
-        if subcommands.len() > 0 && tokens.len() > 0 {
+        if !subcommands.is_empty() && !tokens.is_empty() {
             let token = &tokens[0];
             let mut subcommand_index = None;
             for (idx, subcommand) in subcommands.iter().enumerate() {
@@ -120,7 +142,7 @@ pub trait Cmd: ParserInfo {
         let mut positional_args_so_far = 0;
         if tokens.len() > 1 {
             for token in &tokens[0..tokens.len() - 1] {
-                if !token.starts_with("-") {
+                if !token.starts_with('-') {
                     // in a future where we manage errors more properly, this section could be
                     // closer to how the parser works, eliminating consumed symbols and helping
                     // the end user not see completions for flags they've already typed. Presently
@@ -131,12 +153,9 @@ pub trait Cmd: ParserInfo {
         }
 
         let token = &tokens[tokens.len() - 1];
-        if token.starts_with("-") {
-            let completion_token: &str;
-            if token.starts_with("--") {
-                completion_token = &token[2..];
-            } else {
-                completion_token = &token[1..];
+        if let Some(mut completion_token) = token.strip_prefix('-') {
+            if let Some(second_dash_removed) = completion_token.strip_prefix('-') {
+                completion_token = second_dash_removed;
             }
             let value_completion = completion_token.split('=').collect::<Vec<&str>>();
             if value_completion.len() > 1 {
@@ -167,8 +186,7 @@ pub trait Cmd: ParserInfo {
             let arg = symbols
                 .iter_mut()
                 .filter(|sym| sym.type_name() == InputType::Arg)
-                .skip(positional_args_so_far)
-                .next();
+                .nth(positional_args_so_far);
 
             if let Some(arg) = arg {
                 for option in arg.complete(token) {
@@ -185,13 +203,13 @@ pub trait Cmd: ParserInfo {
         let symbols = self.symbols();
         let symbols_count = symbols.len();
 
-        if tokens.len() == 0 && (symbols_count > 0 || subcommands.len() > 0) {
+        if tokens.is_empty() && (symbols_count > 0 || !subcommands.is_empty()) {
             self.print_help();
             return Err(ParseError::HelpPrinted);
         }
 
         // try to match subcommands
-        if subcommands.len() > 0 {
+        if !subcommands.is_empty() {
             let token = &tokens[0];
             for (idx, subcommand) in subcommands.iter().enumerate() {
                 if &subcommand.name == token {
@@ -206,7 +224,7 @@ pub trait Cmd: ParserInfo {
         let mut symbols = self.symbols();
 
         for token in tokens {
-            if token.starts_with("-") {
+            if token.starts_with('-') {
                 let mut token_matched = false;
                 for symbol in &mut symbols {
                     if !symbol.parsed() && symbol.type_name() == InputType::Flag {

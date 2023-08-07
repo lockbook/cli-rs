@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    input::{Input, InputType},
+    input::{Completor, Input, InputType},
     parser::{CliResult, ParseError},
 };
 
@@ -10,7 +10,7 @@ pub struct Arg<'a, T: FromStr> {
     pub name: String,
     pub description: Option<String>,
     pub value: Option<T>,
-    pub completor: Option<Box<dyn FnMut(&str) -> Vec<String> + 'a>>,
+    pub completor: Option<Completor<'a>>,
 }
 
 impl<'a, T> Arg<'a, T>
@@ -95,5 +95,9 @@ impl<'a, T: FromStr> Input for Arg<'a, T> {
 
     fn is_bool_flag(&self) -> bool {
         false
+    }
+
+    fn description(&self) -> Option<String> {
+        self.description.clone()
     }
 }

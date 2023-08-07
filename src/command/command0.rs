@@ -13,7 +13,7 @@ pub struct Command0<'a> {
     handler: Option<Box<dyn FnMut() + 'a>>,
 }
 
-impl<'a, 'b> ParserInfo for Command0<'a> {
+impl<'a> ParserInfo for Command0<'a> {
     fn symbols(&mut self) -> Vec<&mut dyn Input> {
         vec![]
     }

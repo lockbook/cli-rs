@@ -134,7 +134,7 @@ fn with_flags() {
         .unwrap();
 
     assert_eq!(name, "todo.md");
-    assert_eq!(create, true);
+    assert!(create);
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn bool_flags() {
         .unwrap();
 
     assert_eq!(name, "todo.md");
-    assert_eq!(create, true);
+    assert!(create);
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn short_flag_lower() {
         .unwrap();
 
     assert_eq!(name, "todo.md");
-    assert_eq!(create, true);
+    assert!(create);
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn short_flag_upper() {
         .unwrap();
 
     assert_eq!(name, "todo.md");
-    assert_eq!(create, true);
+    assert!(create);
 }
 
 #[test]
@@ -210,7 +210,7 @@ fn flag_order() {
         .unwrap();
 
     assert_eq!(name, "todo.md");
-    assert_eq!(create, true);
+    assert!(create);
 }
 
 #[test]

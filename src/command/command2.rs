@@ -67,7 +67,7 @@ impl<'a, T1: Input, T2: Input> Command2<'a, T1, T2> {
 
             in1: self.in1,
             in2: self.in2,
-            in3: in3,
+            in3,
 
             subcommands: self.subcommands,
         }

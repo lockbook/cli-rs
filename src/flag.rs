@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    input::{Input, InputType},
+    input::{Completor, Input, InputType},
     parser::{CliResult, ParseError},
 };
 
@@ -10,9 +10,10 @@ use crate::{
 // todo short flag-sets
 pub struct Flag<'a, T: Default + FromStr> {
     pub name: String,
+    pub description: Option<String>,
     pub value: Option<T>,
     pub bool_flag: bool,
-    pub completor: Option<Box<dyn FnMut(&str) -> Vec<String> + 'a>>,
+    pub completor: Option<Completor<'a>>,
 }
 
 impl<'a> Flag<'a, bool> {
@@ -22,6 +23,7 @@ impl<'a> Flag<'a, bool> {
             value: None,
             bool_flag: true,
             completor: None,
+            description: None,
         }
     }
 }
@@ -33,11 +35,17 @@ impl<'a, T: FromStr + Default> Flag<'a, T> {
             value: None,
             bool_flag: false,
             completor: None,
+            description: None,
         }
     }
 
     pub fn get(&self) -> &T {
         self.value.as_ref().unwrap()
+    }
+
+    pub fn description(mut self, description: &str) -> Self {
+        self.description = Some(description.to_string());
+        self
     }
 
     pub fn completor<F>(mut self, completor: F) -> Self
@@ -120,5 +128,9 @@ impl<'a, T: FromStr + Default> Input for Flag<'a, T> {
 
     fn is_bool_flag(&self) -> bool {
         self.bool_flag
+    }
+
+    fn description(&self) -> Option<String> {
+        self.description.clone()
     }
 }
