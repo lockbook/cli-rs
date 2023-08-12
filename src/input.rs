@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::parser::CliResult;
+use crate::cli_error::CliResult;
 
 /// parser complexities:
 ///

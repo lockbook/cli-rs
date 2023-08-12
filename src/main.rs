@@ -28,7 +28,10 @@ fn main() {
                         .filter(|file| file.starts_with(prompt))
                         .collect()
                 }))
-                .handler(|_, _, target| println!("editing target file: {}", target.get())),
+                .handler(|_, _, target| {
+                    println!("editing target file: {}", target.get());
+                    Ok(())
+                }),
         )
         .with_completions()
         .parse();

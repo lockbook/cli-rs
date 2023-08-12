@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
 use crate::{
+    cli_error::{CliError, CliResult},
     input::{Completor, Input, InputType},
-    parser::{CliResult, ParseError},
 };
 
 #[derive(Default)]
-pub struct Arg<'a, T: FromStr> {
+pub struct Arg<'a, T: FromStr + Clone> {
     pub name: String,
     pub description: Option<String>,
     pub value: Option<T>,
@@ -15,7 +15,7 @@ pub struct Arg<'a, T: FromStr> {
 
 impl<'a, T> Arg<'a, T>
 where
-    T: FromStr,
+    T: FromStr + Clone,
 {
     pub fn name(name: &str) -> Self {
         Self {
@@ -31,8 +31,8 @@ where
         self
     }
 
-    pub fn get(&self) -> &T {
-        self.value.as_ref().unwrap()
+    pub fn get(&self) -> T {
+        self.value.clone().unwrap()
     }
 
     pub fn completor<F>(mut self, completor: F) -> Self
@@ -56,18 +56,16 @@ impl<'a> Arg<'a, i32> {
     }
 }
 
-impl<'a, T: FromStr> Input for Arg<'a, T> {
+impl<'a, T: FromStr + Clone> Input for Arg<'a, T> {
     fn parse(&mut self, token: &str) -> CliResult<bool> {
         if token.len() > 2 && &token[0..1] == "-" && &token[0..2] == "--" {
-            eprintln!(
+            return Err(CliError::from(format!(
                 "unexpected flag \"{}\" found while looking for argument \"{}\"",
                 token, self.name
-            );
-            return Err(ParseError::UnexpectedToken);
+            )));
         }
         self.value = Some(token.parse().map_err(|_| {
-            eprintln!("{} cannot be parsed for {}.", token, self.name);
-            ParseError::FromStrFailure
+            CliError::from(format!("{} cannot be parsed for {}.", token, self.name))
         })?);
 
         Ok(true)

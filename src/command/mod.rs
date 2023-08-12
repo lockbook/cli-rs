@@ -1,6 +1,6 @@
 use self::command0::Command0;
+use crate::cli_error::{CliError, CliResult};
 use crate::input::Input;
-use crate::parser::ParseError;
 use std::fmt::Write;
 use std::str::FromStr;
 
@@ -15,9 +15,9 @@ pub trait ParserInfo {
     fn docs(&self) -> &DocInfo;
     fn symbols(&mut self) -> Vec<&mut dyn Input>;
     fn subcommand_docs(&self) -> Vec<DocInfo>;
-    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError>;
-    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError>;
-    fn call_handler(&mut self);
+    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError>;
+    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError>;
+    fn call_handler(&mut self) -> CliResult<()>;
     fn push_parent(&mut self, parents: &[String]);
 }
 

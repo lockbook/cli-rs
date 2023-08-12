@@ -4,7 +4,7 @@ use cli_rs::{
     arg::Arg,
     command::Command,
     flag::Flag,
-    parser::{Cmd, ParseError},
+    parser::{CliError, Cmd},
 };
 
 #[test]
@@ -54,7 +54,7 @@ fn missing_arg() {
     let mut name = String::default();
     let mut age = 0;
 
-    let err: ParseError = Command::name("nameage")
+    let err: CliError = Command::name("nameage")
         .input(Arg::str("name"))
         .input(Arg::i32("age"))
         .handler(|n, a| {
@@ -64,7 +64,7 @@ fn missing_arg() {
         .parse_args(&["parth".to_string()])
         .unwrap_err();
 
-    assert_eq!(err, ParseError::MissingArg);
+    assert_eq!(err, CliError::MissingArg);
     assert_eq!(name, String::default());
     assert_eq!(age, 0);
 }

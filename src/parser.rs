@@ -1,70 +1,62 @@
-use std::{env, process::exit};
+use std::{env, fmt::Write};
 
 use crate::{
+    cli_error::{CliError, CliResult, Exit},
     command::{CompletionMode, ParserInfo},
     input::InputType,
 };
-
-pub type CliResult<T> = Result<T, ParseError>;
-
-#[derive(Debug, PartialEq)]
-pub enum ParseError {
-    HelpPrinted = 1,
-    MissingArg = 2,
-    SubcommandNotFound = 3,
-    UnexpectedToken = 4,
-    FromStrFailure = 5,
-}
-
 impl<C> Cmd for C where C: ParserInfo {}
 
 pub trait Cmd: ParserInfo {
-    fn print_help(&mut self) {
+    fn print_help(&mut self) -> CliError {
         let cmd_path = self.docs().cmd_path();
+        let mut help_message = String::new();
 
-        print!("{cmd_path}");
+        write!(help_message, "{cmd_path}").unwrap();
 
         if let Some(description) = &self.docs().description {
-            print!(" - {description}");
+            write!(help_message, " - {description}").unwrap();
         }
 
-        println!("\n");
+        writeln!(help_message, "\n").unwrap();
 
         let subcommands = self.subcommand_docs();
         if subcommands.is_empty() {
-            println!("usage: {cmd_path} [options], <args>");
-            println!("\nflags:");
+            writeln!(help_message, "usage: {cmd_path} [options], <args>").unwrap();
+            writeln!(help_message, "\nflags:").unwrap();
             for symbol in self.symbols() {
                 if symbol.type_name() == InputType::Flag {
-                    print!("--{}", symbol.display_name());
+                    writeln!(help_message, "--{}", symbol.display_name()).unwrap();
                     if let Some(desc) = symbol.description() {
-                        print!(": {desc}");
+                        writeln!(help_message, ": {desc}").unwrap();
                     }
-                    println!();
+                    writeln!(help_message).unwrap();
                 }
             }
-            println!("\nargs:");
+            writeln!(help_message, "\nargs:").unwrap();
             for symbol in self.symbols() {
                 if symbol.type_name() == InputType::Arg {
-                    print!("{}", symbol.display_name());
+                    write!(help_message, "{}", symbol.display_name()).unwrap();
                     if let Some(desc) = symbol.description() {
-                        print!(": {desc}");
+                        write!(help_message, ": {desc}").unwrap();
                     }
-                    println!();
+                    writeln!(help_message).unwrap();
                 }
             }
         } else {
-            println!("usage: {cmd_path} <subcommands>");
-            println!("\nsubcommands:");
+            writeln!(help_message, "usage: {cmd_path} <subcommand>").unwrap();
+            writeln!(help_message, "\nsubcommands:").unwrap();
             for subcommand in subcommands {
-                print!("{}", subcommand.name);
+                write!(help_message, "{}", subcommand.name).unwrap();
                 if let Some(description) = subcommand.description {
-                    print!(": {description}");
+                    write!(help_message, ": {description}").unwrap();
                 }
 
-                println!();
+                writeln!(help_message).unwrap();
             }
         }
+
+        return CliError::from(help_message);
     }
 
     // split this out into a trait that is pub, make the rest not pub
@@ -87,18 +79,10 @@ pub trait Cmd: ParserInfo {
                     .collect()
             };
 
-            let status = match self.complete_args(&prompt[1..]) {
-                Ok(()) => 0,
-                Err(err) => err as i32,
-            };
-            exit(status);
+            self.complete_args(&prompt[1..]).exit();
         }
 
-        let status = match self.parse_args(&args[1..]) {
-            Ok(()) => 0,
-            Err(err) => err as i32,
-        };
-        exit(status);
+        self.parse_args(&args[1..]).exit();
     }
 
     fn complete_args(&mut self, tokens: &[String]) -> CliResult<()> {
@@ -204,8 +188,7 @@ pub trait Cmd: ParserInfo {
         let symbols_count = symbols.len();
 
         if tokens.is_empty() && (symbols_count > 0 || !subcommands.is_empty()) {
-            self.print_help();
-            return Err(ParseError::HelpPrinted);
+            return Err(self.print_help());
         }
 
         // try to match subcommands
@@ -217,8 +200,7 @@ pub trait Cmd: ParserInfo {
                 }
             }
 
-            eprintln!("{token} is not a valid subcommand");
-            return Err(ParseError::SubcommandNotFound);
+            return Err(CliError::from(format!("{token} is not a valid subcommand")));
         }
 
         let mut symbols = self.symbols();
@@ -235,8 +217,9 @@ pub trait Cmd: ParserInfo {
                     }
                 }
                 if !token_matched {
-                    eprintln!("Unexpected flag-like token found {token}");
-                    return Err(ParseError::UnexpectedToken);
+                    return Err(CliError::from(format!(
+                        "Unexpected flag-like token found {token}"
+                    )));
                 }
             } else {
                 'args: for symbol in &mut symbols {
@@ -250,12 +233,13 @@ pub trait Cmd: ParserInfo {
 
         for symbol in symbols {
             if symbol.type_name() == InputType::Arg && !symbol.parsed() {
-                eprintln!("Missing required argument: {}", symbol.display_name());
-                return Err(ParseError::MissingArg);
+                return Err(CliError::from(format!(
+                    "Missing required argument: {}",
+                    symbol.display_name()
+                )));
             }
         }
 
-        self.call_handler();
-        Ok(())
+        self.call_handler()
     }
 }

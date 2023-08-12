@@ -1,7 +1,8 @@
 use crate::{
     arg::Arg,
+    cli_error::{CliError, CliResult},
     input::Input,
-    parser::{Cmd, ParseError},
+    parser::Cmd,
 };
 
 use super::{command1::Command1, CompletionMode, DocInfo, ParserInfo};
@@ -10,7 +11,7 @@ pub struct Command0<'a> {
     docs: DocInfo,
 
     subcommands: Vec<Box<dyn Cmd + 'a>>,
-    handler: Option<Box<dyn FnMut() + 'a>>,
+    handler: Option<Box<dyn FnMut() -> CliResult<()> + 'a>>,
 }
 
 impl<'a> ParserInfo for Command0<'a> {
@@ -18,9 +19,14 @@ impl<'a> ParserInfo for Command0<'a> {
         vec![]
     }
 
-    fn call_handler(&mut self) {
+    fn call_handler(&mut self) -> CliResult<()> {
         if let Some(handler) = &mut self.handler {
             handler()
+        } else {
+            Err(CliError::from(format!(
+                "No handler hooked up to {}",
+                self.docs.cmd_path()
+            )))
         }
     }
 
@@ -32,15 +38,15 @@ impl<'a> ParserInfo for Command0<'a> {
         &self.docs
     }
 
-    fn push_parent(&mut self, _parents: &[String]) {
-        panic!("command0 shouldn't have a parent pushed on to it");
+    fn push_parent(&mut self, parents: &[String]) {
+        self.docs.parents.extend_from_slice(parents);
     }
 
-    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError> {
         self.subcommands[sub_idx].parse_args(tokens)
     }
 
-    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError> {
         self.subcommands[sub_idx].complete_args(tokens)
     }
 }
@@ -66,6 +72,7 @@ impl<'a> Command0<'a> {
                 .input(Arg::<CompletionMode>::name("shell"))
                 .handler(move |shell| {
                     shell.get().print_completion(&name);
+                    Ok(())
                 }),
         )
     }
@@ -87,7 +94,7 @@ impl<'a> Command0<'a> {
 
     pub fn handler<F>(mut self, handler: F) -> Self
     where
-        F: FnMut() + 'a,
+        F: FnMut() -> CliResult<()> + 'a,
     {
         self.handler = Some(Box::new(handler));
         self

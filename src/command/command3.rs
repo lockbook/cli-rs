@@ -1,10 +1,11 @@
 use super::{DocInfo, ParserInfo};
 use crate::{
+    cli_error::{CliError, CliResult},
     input::Input,
-    parser::{Cmd, ParseError},
+    parser::Cmd,
 };
 
-type Callback3<'a, T1, T2, T3> = Box<dyn FnMut(&T1, &T2, &T3) + 'a>;
+type Callback3<'a, T1, T2, T3> = Box<dyn FnMut(&T1, &T2, &T3) -> CliResult<()> + 'a>;
 pub struct Command3<'a, T1: Input, T2: Input, T3: Input> {
     pub docs: DocInfo,
 
@@ -26,9 +27,14 @@ where
         vec![&mut self.in1, &mut self.in2, &mut self.in3]
     }
 
-    fn call_handler(&mut self) {
+    fn call_handler(&mut self) -> CliResult<()> {
         if let Some(handler) = &mut self.handler {
-            handler(&self.in1, &self.in2, &self.in3);
+            handler(&self.in1, &self.in2, &self.in3)
+        } else {
+            Err(CliError::from(format!(
+                "No handler hooked up to {}",
+                self.docs.cmd_path()
+            )))
         }
     }
 
@@ -44,11 +50,11 @@ where
         self.docs.parents.extend_from_slice(parents);
     }
 
-    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError> {
         self.subcommands[sub_idx].complete_args(tokens)
     }
 
-    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), ParseError> {
+    fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError> {
         self.subcommands[sub_idx].parse_args(tokens)
     }
 }
@@ -56,7 +62,7 @@ where
 impl<'a, T1: Input, T2: Input, T3: Input> Command3<'a, T1, T2, T3> {
     pub fn handler<F>(mut self, handler: F) -> Self
     where
-        F: FnMut(&T1, &T2, &T3) + 'a,
+        F: FnMut(&T1, &T2, &T3) -> CliResult<()> + 'a,
     {
         self.handler = Some(Box::new(handler));
         self

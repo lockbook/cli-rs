@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
 use crate::{
+    cli_error::{CliError, CliResult},
     input::{Completor, Input, InputType},
-    parser::{CliResult, ParseError},
 };
 
 // todo existence
 // todo short flags with a space
 // todo short flag-sets
-pub struct Flag<'a, T: Default + FromStr> {
+pub struct Flag<'a, T: Default + FromStr + Clone> {
     pub name: String,
     pub description: Option<String>,
     pub value: Option<T>,
@@ -28,7 +28,7 @@ impl<'a> Flag<'a, bool> {
     }
 }
 
-impl<'a, T: FromStr + Default> Flag<'a, T> {
+impl<'a, T: FromStr + Default + Clone> Flag<'a, T> {
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -39,8 +39,8 @@ impl<'a, T: FromStr + Default> Flag<'a, T> {
         }
     }
 
-    pub fn get(&self) -> &T {
-        self.value.as_ref().unwrap()
+    pub fn get(&self) -> T {
+        self.value.clone().unwrap_or_default()
     }
 
     pub fn description(mut self, description: &str) -> Self {
@@ -57,7 +57,7 @@ impl<'a, T: FromStr + Default> Flag<'a, T> {
     }
 }
 
-impl<'a, T: FromStr + Default> Input for Flag<'a, T> {
+impl<'a, T: FromStr + Default + Clone> Input for Flag<'a, T> {
     // for short flags with a space
     // should probably return a Result<bool, ParseError>
     fn parse(&mut self, token: &str) -> CliResult<bool> {
@@ -91,8 +91,7 @@ impl<'a, T: FromStr + Default> Input for Flag<'a, T> {
             let value = &token[eq_idx + 1..].to_string();
 
             self.value = Some(value.parse().map_err(|_| {
-                eprintln!("{} cannot be parsed for {}", value, self.name);
-                ParseError::FromStrFailure
+                CliError::from(format!("{} cannot be parsed for {}", value, self.name))
             })?);
 
             return Ok(true);
