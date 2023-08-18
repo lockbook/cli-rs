@@ -50,7 +50,7 @@ impl<'a, T: FromStr + Default + Clone> Flag<'a, T> {
 
     pub fn completor<F>(mut self, completor: F) -> Self
     where
-        F: FnMut(&str) -> Vec<String> + 'a,
+        F: FnMut(&str) -> CliResult<Vec<String>> + 'a,
     {
         self.completor = Some(Box::new(completor));
         self
@@ -117,11 +117,11 @@ impl<'a, T: FromStr + Default + Clone> Input for Flag<'a, T> {
         self.value.is_some()
     }
 
-    fn complete(&mut self, value: &str) -> Vec<String> {
+    fn complete(&mut self, value: &str) -> CliResult<Vec<String>> {
         if let Some(completor) = &mut self.completor {
             completor(value)
         } else {
-            vec![]
+            Ok(vec![])
         }
     }
 
@@ -131,5 +131,9 @@ impl<'a, T: FromStr + Default + Clone> Input for Flag<'a, T> {
 
     fn description(&self) -> Option<String> {
         self.description.clone()
+    }
+
+    fn has_default(&self) -> bool {
+        true
     }
 }

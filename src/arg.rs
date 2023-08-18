@@ -11,6 +11,7 @@ pub struct Arg<'a, T: FromStr + Clone> {
     pub description: Option<String>,
     pub value: Option<T>,
     pub completor: Option<Completor<'a>>,
+    pub default_value: Option<T>,
 }
 
 impl<'a, T> Arg<'a, T>
@@ -23,7 +24,13 @@ where
             description: None,
             value: None,
             completor: None,
+            default_value: None,
         }
+    }
+
+    pub fn default(mut self, default: T) -> Self {
+        self.default_value = Some(default);
+        self
     }
 
     pub fn description(mut self, description: &str) -> Self {
@@ -32,12 +39,14 @@ where
     }
 
     pub fn get(&self) -> T {
-        self.value.clone().unwrap()
+        self.value
+            .clone()
+            .unwrap_or_else(|| self.default_value.clone().unwrap())
     }
 
     pub fn completor<F>(mut self, completor: F) -> Self
     where
-        F: FnMut(&str) -> Vec<String> + 'a,
+        F: FnMut(&str) -> CliResult<Vec<String>> + 'a,
     {
         self.completor = Some(Box::new(completor));
         self
@@ -83,11 +92,11 @@ impl<'a, T: FromStr + Clone> Input for Arg<'a, T> {
         self.value.is_some()
     }
 
-    fn complete(&mut self, value: &str) -> Vec<String> {
+    fn complete(&mut self, value: &str) -> CliResult<Vec<String>> {
         if let Some(completor) = &mut self.completor {
             completor(value)
         } else {
-            vec![]
+            Ok(vec![])
         }
     }
 
@@ -97,5 +106,9 @@ impl<'a, T: FromStr + Clone> Input for Arg<'a, T> {
 
     fn description(&self) -> Option<String> {
         self.description.clone()
+    }
+
+    fn has_default(&self) -> bool {
+        self.default_value.is_some()
     }
 }

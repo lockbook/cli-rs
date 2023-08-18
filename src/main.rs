@@ -14,19 +14,19 @@ fn main() {
         .subcommand(
             Command::name("edit")
                 .input(Flag::<String>::new("editor").completor(|prompt| {
-                    ["vim", "nvim", "nano", "sublime", "code"]
+                    Ok(["vim", "nvim", "nano", "sublime", "code"]
                         .iter()
                         .filter(|editor| editor.starts_with(prompt))
                         .map(|s| s.to_string())
-                        .collect()
+                        .collect())
                 }))
                 .input(Flag::<String>::new("force"))
                 .input(Arg::<String>::name("target").completor(|prompt| {
-                    files
+                    Ok(files
                         .clone()
                         .into_iter()
                         .filter(|file| file.starts_with(prompt))
-                        .collect()
+                        .collect())
                 }))
                 .handler(|_, _, target| {
                     println!("editing target file: {}", target.get());

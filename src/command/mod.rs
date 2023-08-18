@@ -8,6 +8,7 @@ pub mod command0;
 pub mod command1;
 pub mod command2;
 pub mod command3;
+pub mod command4;
 
 pub type Command<'a> = Command0<'a>;
 

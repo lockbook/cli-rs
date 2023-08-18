@@ -26,9 +26,9 @@ pub trait Cmd: ParserInfo {
             writeln!(help_message, "\nflags:").unwrap();
             for symbol in self.symbols() {
                 if symbol.type_name() == InputType::Flag {
-                    writeln!(help_message, "--{}", symbol.display_name()).unwrap();
+                    write!(help_message, "--{}", symbol.display_name()).unwrap();
                     if let Some(desc) = symbol.description() {
-                        writeln!(help_message, ": {desc}").unwrap();
+                        write!(help_message, ": {desc}").unwrap();
                     }
                     writeln!(help_message).unwrap();
                 }
@@ -56,7 +56,7 @@ pub trait Cmd: ParserInfo {
             }
         }
 
-        return CliError::from(help_message);
+        CliError::from(help_message)
     }
 
     // split this out into a trait that is pub, make the rest not pub
@@ -86,7 +86,7 @@ pub trait Cmd: ParserInfo {
     }
 
     fn complete_args(&mut self, tokens: &[String]) -> CliResult<()> {
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
             return Ok(());
         }
 
@@ -145,7 +145,7 @@ pub trait Cmd: ParserInfo {
             if value_completion.len() > 1 {
                 for symbol in &mut symbols {
                     if symbol.display_name() == value_completion[0] {
-                        for completion in symbol.complete(value_completion[1]) {
+                        for completion in symbol.complete(value_completion[1])? {
                             println!("--{}={completion}", symbol.display_name());
                         }
                         return Ok(());
@@ -173,7 +173,7 @@ pub trait Cmd: ParserInfo {
                 .nth(positional_args_so_far);
 
             if let Some(arg) = arg {
-                for option in arg.complete(token) {
+                for option in arg.complete(token)? {
                     println!("{option}");
                 }
             }
@@ -185,9 +185,9 @@ pub trait Cmd: ParserInfo {
     fn parse_args(&mut self, tokens: &[String]) -> CliResult<()> {
         let subcommands = self.subcommand_docs();
         let symbols = self.symbols();
-        let symbols_count = symbols.len();
+        let required_args = symbols.iter().filter(|f| !f.has_default()).count();
 
-        if tokens.is_empty() && (symbols_count > 0 || !subcommands.is_empty()) {
+        if tokens.is_empty() && (required_args > 0 || !subcommands.is_empty()) {
             return Err(self.print_help());
         }
 
@@ -232,7 +232,7 @@ pub trait Cmd: ParserInfo {
         }
 
         for symbol in symbols {
-            if symbol.type_name() == InputType::Arg && !symbol.parsed() {
+            if symbol.type_name() == InputType::Arg && !symbol.has_default() && !symbol.parsed() {
                 return Err(CliError::from(format!(
                     "Missing required argument: {}",
                     symbol.display_name()
