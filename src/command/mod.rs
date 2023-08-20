@@ -56,7 +56,7 @@ impl FromStr for CompletionMode {
             "bash" => Ok(Self::Bash),
             "zsh" => Ok(Self::Zsh),
             "fish" => Ok(Self::Fish),
-            _ => panic!("unsuppored shell"),
+            _ => panic!("unsuppored shell, choices are bash, zsh, and fish"),
         }
     }
 }
