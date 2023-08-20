@@ -69,7 +69,12 @@ impl<'a> Command0<'a> {
         self.subcommand(
             Self::name("completions")
                 .description("generate completions for a given shell")
-                .input(Arg::<CompletionMode>::name("shell"))
+                .input(Arg::<CompletionMode>::name("shell").completor(|prompt| {
+                    Ok(["bash".to_string(), "zsh".to_string(), "fish".to_string()]
+                        .into_iter()
+                        .filter(|sh| sh.starts_with(prompt))
+                        .collect())
+                }))
                 .handler(move |shell| {
                     shell.get().print_completion(&name);
                     Ok(())
@@ -102,6 +107,7 @@ impl<'a> Command0<'a> {
 
     pub fn subcommand<C: Cmd + 'a>(mut self, mut sub: C) -> Self {
         sub.push_parent(&self.docs.parents);
+        sub.push_parent(&[self.docs.name.clone()]);
         self.subcommands.push(Box::new(sub));
         self
     }

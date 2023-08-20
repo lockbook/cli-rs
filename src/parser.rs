@@ -5,6 +5,9 @@ use crate::{
     command::{CompletionMode, ParserInfo},
     input::InputType,
 };
+
+use colored::*;
+
 impl<C> Cmd for C where C: ParserInfo {}
 
 pub trait Cmd: ParserInfo {
@@ -12,7 +15,7 @@ pub trait Cmd: ParserInfo {
         let cmd_path = self.docs().cmd_path();
         let mut help_message = String::new();
 
-        write!(help_message, "{cmd_path}").unwrap();
+        write!(help_message, "{}", cmd_path.bold().green()).unwrap();
 
         if let Some(description) = &self.docs().description {
             write!(help_message, " - {description}").unwrap();
@@ -21,22 +24,24 @@ pub trait Cmd: ParserInfo {
         writeln!(help_message, "\n").unwrap();
 
         let subcommands = self.subcommand_docs();
+        writeln!(help_message, "{}", "USAGE:".bold().yellow()).unwrap();
         if subcommands.is_empty() {
-            writeln!(help_message, "usage: {cmd_path} [options], <args>").unwrap();
-            writeln!(help_message, "\nflags:").unwrap();
+            let usage = format!("{cmd_path} [options], <args>").bold();
+            writeln!(help_message, "\t{usage}").unwrap();
+            writeln!(help_message, "\n{}", "FLAGS:".yellow().bold()).unwrap();
             for symbol in self.symbols() {
                 if symbol.type_name() == InputType::Flag {
-                    write!(help_message, "--{}", symbol.display_name()).unwrap();
+                    write!(help_message, "\t--{}", symbol.display_name().bold()).unwrap();
                     if let Some(desc) = symbol.description() {
                         write!(help_message, ": {desc}").unwrap();
                     }
                     writeln!(help_message).unwrap();
                 }
             }
-            writeln!(help_message, "\nargs:").unwrap();
+            writeln!(help_message, "\n{}", "ARGS:".yellow().bold()).unwrap();
             for symbol in self.symbols() {
                 if symbol.type_name() == InputType::Arg {
-                    write!(help_message, "{}", symbol.display_name()).unwrap();
+                    write!(help_message, "\t{}", symbol.display_name().bold()).unwrap();
                     if let Some(desc) = symbol.description() {
                         write!(help_message, ": {desc}").unwrap();
                     }
@@ -44,12 +49,14 @@ pub trait Cmd: ParserInfo {
                 }
             }
         } else {
-            writeln!(help_message, "usage: {cmd_path} <subcommand>").unwrap();
-            writeln!(help_message, "\nsubcommands:").unwrap();
+            let usage = format! {"{cmd_path} <subcommand>"}.bold();
+            writeln!(help_message, "\t{usage}").unwrap();
+            writeln!(help_message, "\n{}", "SUBCOMMANDS:".yellow().bold()).unwrap();
+            let sub_width = subcommands.iter().map(|s| s.name.len()).max().unwrap();
             for subcommand in subcommands {
-                write!(help_message, "{}", subcommand.name).unwrap();
+                write!(help_message, "\t{:sub_width$}", subcommand.name.bold()).unwrap();
                 if let Some(description) = subcommand.description {
-                    write!(help_message, ": {description}").unwrap();
+                    write!(help_message, " {description}").unwrap();
                 }
 
                 writeln!(help_message).unwrap();

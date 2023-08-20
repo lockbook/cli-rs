@@ -82,7 +82,9 @@ impl<'a, T1: Input, T2: Input, T3: Input> Command3<'a, T1, T2, T3> {
         }
     }
 
-    pub fn subcommand<C: Cmd + 'static>(mut self, sub: C) -> Self {
+    pub fn subcommand<C: Cmd + 'static>(mut self, mut sub: C) -> Self {
+        sub.push_parent(&self.docs.parents);
+        sub.push_parent(&[self.docs.name.clone()]);
         self.subcommands.push(Box::new(sub));
         self
     }
