@@ -86,7 +86,7 @@ pub trait Cmd: ParserInfo {
                     .collect()
             };
 
-            self.complete_args(&prompt[1..]).exit();
+            self.complete_args(&prompt[1..]).exit_silently();
         }
 
         self.parse_args(&args[1..]).exit();
@@ -115,16 +115,18 @@ pub trait Cmd: ParserInfo {
             }
 
             // print subcommands that begin with the token
-            subcommands
-                .iter()
-                .filter_map(|sub| {
-                    if sub.name.starts_with(token) {
-                        Some(sub.name.to_string())
-                    } else {
-                        None
-                    }
-                })
-                .for_each(|sub| println!("{sub}"));
+            if tokens.len() == 1 {
+                subcommands
+                    .iter()
+                    .filter_map(|sub| {
+                        if sub.name.starts_with(token) {
+                            Some(sub.name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .for_each(|sub| println!("{sub}"));
+            }
             return Ok(());
         }
 

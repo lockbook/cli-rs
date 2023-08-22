@@ -20,6 +20,7 @@ pub trait Exit {
 
     fn exit(self);
     fn exit_if_err(self) -> Self::O;
+    fn exit_silently(self);
 }
 
 impl<O> Exit for CliResult<O> {
@@ -43,5 +44,14 @@ impl<O> Exit for CliResult<O> {
                 std::process::exit(err.status);
             }
         }
+    }
+
+    fn exit_silently(self) {
+        let status = match self {
+            Ok(_) => 0,
+            Err(e) => e.status,
+        };
+
+        std::process::exit(status);
     }
 }
