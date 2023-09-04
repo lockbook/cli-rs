@@ -1,17 +1,15 @@
 use std::str::FromStr;
 
-use cli_rs::{
-    arg::Arg,
-    command::Command,
-    flag::Flag,
-    parser::{CliError, Cmd},
-};
+use cli_rs::{arg::Arg, command::Command, flag::Flag, parser::Cmd};
 
 #[test]
 fn basic_command() {
     let mut called = false;
     Command::name("test")
-        .handler(|| called = true)
+        .handler(|| {
+            called = true;
+            Ok(())
+        })
         .parse_args(&[])
         .unwrap();
     assert!(called);
@@ -23,7 +21,10 @@ fn with_1_arg() {
 
     Command::name("test")
         .input(Arg::str("name"))
-        .handler(|name| input_name = name.get().clone())
+        .handler(|name| {
+            input_name = name.get().clone();
+            Ok(())
+        })
         .parse_args(&["parth".to_string()])
         .unwrap();
 
@@ -40,7 +41,8 @@ fn with_2_args() {
         .input(Arg::i32("age"))
         .handler(|n, a| {
             name = n.get().clone();
-            age = *a.get();
+            age = a.get();
+            Ok(())
         })
         .parse_args(&["parth".to_string(), "27".to_string()])
         .unwrap();
@@ -54,17 +56,17 @@ fn missing_arg() {
     let mut name = String::default();
     let mut age = 0;
 
-    let err: CliError = Command::name("nameage")
+    Command::name("nameage")
         .input(Arg::str("name"))
         .input(Arg::i32("age"))
         .handler(|n, a| {
             name = n.get().clone();
-            age = *a.get();
+            age = a.get();
+            Ok(())
         })
         .parse_args(&["parth".to_string()])
         .unwrap_err();
 
-    assert_eq!(err, CliError::MissingArg);
     assert_eq!(name, String::default());
     assert_eq!(age, 0);
 }
@@ -75,7 +77,10 @@ fn arg_parsing_failure() {
 
     Command::name("arg-test")
         .input(Arg::<FileType>::name("type"))
-        .handler(|t| file_type = *t.get())
+        .handler(|t| {
+            file_type = t.get();
+            Ok(())
+        })
         .parse_args(&["not-a-doc".to_string()])
         .unwrap_err();
 }
@@ -109,7 +114,8 @@ fn with_custom_args() {
         .input(Arg::<FileType>::name("type"))
         .handler(|n, f| {
             name = n.get().clone();
-            ft = *f.get();
+            ft = f.get();
+            Ok(())
         })
         .parse_args(&["todo.md".to_string(), "doc".to_string()])
         .unwrap();
@@ -128,7 +134,8 @@ fn with_flags() {
         .input(Flag::bool("create"))
         .handler(|n, c| {
             name = n.get().clone();
-            create = *c.get();
+            create = c.get();
+            Ok(())
         })
         .parse_args(&["todo.md".to_string(), "--create=true".to_string()])
         .unwrap();
@@ -147,7 +154,8 @@ fn bool_flags() {
         .input(Flag::bool("create"))
         .handler(|n, c| {
             name = n.get().clone();
-            create = *c.get();
+            create = c.get();
+            Ok(())
         })
         .parse_args(&["todo.md".to_string(), "--create".to_string()])
         .unwrap();
@@ -166,7 +174,8 @@ fn short_flag_lower() {
         .input(Flag::bool("create"))
         .handler(|n, c| {
             name = n.get().clone();
-            create = *c.get();
+            create = c.get();
+            Ok(())
         })
         .parse_args(&["todo.md".to_string(), "-c".to_string()])
         .unwrap();
@@ -185,7 +194,8 @@ fn short_flag_upper() {
         .input(Flag::bool("create"))
         .handler(|n, c| {
             name = n.get().clone();
-            create = *c.get();
+            create = c.get();
+            Ok(())
         })
         .parse_args(&["todo.md".to_string(), "-C".to_string()])
         .unwrap();
@@ -204,7 +214,8 @@ fn flag_order() {
         .input(Flag::bool("create"))
         .handler(|n, c| {
             name = n.get().clone();
-            create = *c.get();
+            create = c.get();
+            Ok(())
         })
         .parse_args(&["todo.md".to_string(), "--create".to_string()])
         .unwrap();
@@ -223,7 +234,8 @@ fn flag_parsing_failure() {
         .input(Flag::<FileType>::new("type"))
         .handler(|n, t| {
             name = n.get().clone();
-            f_type = *t.get();
+            f_type = t.get();
+            Ok(())
         })
         .parse_args(&["todo.md".to_string(), "--create".to_string()])
         .unwrap_err(); // todo could be more specific here
@@ -234,11 +246,10 @@ fn subcommands() {
     let mut path = String::default();
 
     Command::name("lockbook")
-        .subcommand(
-            Command::name("edit")
-                .input(Arg::str("path"))
-                .handler(|n| path = n.get().clone()),
-        )
+        .subcommand(Command::name("edit").input(Arg::str("path")).handler(|n| {
+            path = n.get().clone();
+            Ok(())
+        }))
         .parse_args(&["edit".to_string(), "path".to_string()])
         .unwrap();
 
@@ -265,7 +276,10 @@ fn subcommand_arg() {
             Command::name("edit")
                 .input(Flag::<String>::new("edit"))
                 .input(Arg::<String>::name("target"))
-                .handler(|_, target| println!("editing target file: {}", target.get())),
+                .handler(|_, target| {
+                    println!("editing target file: {}", target.get());
+                    Ok(())
+                }),
         )
         .with_completions()
         .parse_args(&["edit".to_string(), "a.md".to_string()])
@@ -277,11 +291,10 @@ fn subcommands_mismatch() {
     let mut path = String::default();
 
     Command::name("lockbook")
-        .subcommand(
-            Command::name("new")
-                .input(Arg::str("path"))
-                .handler(|n| path = n.get().clone()),
-        )
+        .subcommand(Command::name("new").input(Arg::str("path")).handler(|n| {
+            path = n.get().clone();
+            Ok(())
+        }))
         .parse_args(&["edit".to_string(), "path".to_string()])
         .unwrap_err();
 
