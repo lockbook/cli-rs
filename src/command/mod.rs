@@ -85,13 +85,13 @@ complete -o nospace -F _{name}_complete_ {name} -E
             ),
             CompletionMode::Zsh => format!(
                 r#"
+#compdef {name}
 function _{name} {{
     _reply_str=$( {name} complete zsh "$(($CURRENT - 1))" "${{words[*]}}" )
     
     _reply_arr=("${{(f)_reply_str}}") 
     compadd -S '' -a _reply_arr 
 }}
-#compdef _{name} {name}
 "#
             ),
         };
