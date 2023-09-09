@@ -91,7 +91,7 @@ function _{name} {{
     _reply_arr=("${{(f)_reply_str}}") 
     compadd -S '' -a _reply_arr 
 }}
-compdef _{name} {name}
+#compdef _{name} {name}
 "#
             ),
         };
