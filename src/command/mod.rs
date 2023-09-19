@@ -1,14 +1,6 @@
-use self::command0::Command0;
-use crate::cli_error::{CliError, CliResult};
-use crate::input::Input;
+use cli_rs_command_gen::command;
 use std::fmt::Write;
 use std::str::FromStr;
-
-pub mod command0;
-pub mod command1;
-pub mod command2;
-pub mod command3;
-pub mod command4;
 
 pub type Command<'a> = Command0<'a>;
 
@@ -99,3 +91,18 @@ function _{name} {{
         println!("{adapter}");
     }
 }
+
+use crate::{
+    arg::Arg,
+    cli_error::{CliError, CliResult},
+    input::Input,
+    parser::Cmd,
+};
+
+command!(0);
+command!(1);
+command!(2);
+command!(3);
+command!(4);
+command!(5);
+command!(6);
