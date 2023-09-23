@@ -2,6 +2,8 @@
 name = "cli-rs-command-gen"
 version = "0.1.8"
 edition = "2021"
+description = "internal helper for cli-rs"
+license = "UNLICENSE"
 
 [lib]
 proc-macro = true

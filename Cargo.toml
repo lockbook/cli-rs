@@ -7,7 +7,7 @@ description = "create clis with sophisticated completions"
 
 [dependencies]
 colored = "2"
-cli-rs-command-gen = { path = "src/command/cli-rs-command-gen" }
+cli-rs-command-gen = "0.1.8"
 
 [workspace]
 resolver="2"
