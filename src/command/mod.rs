@@ -86,8 +86,7 @@ complete -o nospace -F _{name}_complete_ {name} -E
 #compdef {name}
 function _{name} {{
     comp_ouput=$( {name} complete zsh "$(($CURRENT - 1))" "${{words[*]}}" )
-    eval ${comp_output}
-    
+    eval ${{comp_output}}
 }}
 "#
             ),
