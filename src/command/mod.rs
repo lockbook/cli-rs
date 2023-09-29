@@ -4,12 +4,17 @@ use std::str::FromStr;
 
 pub type Command<'a> = Command0<'a>;
 
+// todo: use CliResult, also in macro
 pub trait ParserInfo {
     fn docs(&self) -> &DocInfo;
     fn symbols(&mut self) -> Vec<&mut dyn Input>;
     fn subcommand_docs(&self) -> Vec<DocInfo>;
     fn parse_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError>;
-    fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError>;
+    fn complete_subcommand(
+        &mut self,
+        sub_idx: usize,
+        tokens: &[String],
+    ) -> Result<Vec<CompOut>, CliError>;
     fn call_handler(&mut self) -> CliResult<()>;
     fn push_parent(&mut self, parents: &[String]);
 }
@@ -17,6 +22,7 @@ pub trait ParserInfo {
 #[derive(Default, Debug, Clone)]
 pub struct DocInfo {
     pub(crate) name: String,
+    pub(crate) version: Option<String>,
     pub(crate) description: Option<String>,
     pub(crate) parents: Vec<String>,
 }
@@ -79,10 +85,9 @@ complete -o nospace -F _{name}_complete_ {name} -E
                 r#"
 #compdef {name}
 function _{name} {{
-    _reply_str=$( {name} complete zsh "$(($CURRENT - 1))" "${{words[*]}}" )
+    comp_ouput=$( {name} complete zsh "$(($CURRENT - 1))" "${{words[*]}}" )
+    eval ${comp_output}
     
-    _reply_arr=("${{(f)_reply_str}}") 
-    compadd -S '' -a _reply_arr 
 }}
 "#
             ),
@@ -96,7 +101,7 @@ use crate::{
     arg::Arg,
     cli_error::{CliError, CliResult},
     input::Input,
-    parser::Cmd,
+    parser::{Cmd, CompOut},
 };
 
 command!(0);

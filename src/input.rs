@@ -17,6 +17,8 @@ pub trait Input {
     fn description(&self) -> Option<String>;
     fn type_name(&self) -> InputType;
     fn is_bool_flag(&self) -> bool;
+
+    /// must not return completions that don't start with value, otherwise bash breaks
     fn complete(&mut self, value: &str) -> CliResult<Vec<String>>;
 }
 

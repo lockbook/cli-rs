@@ -110,6 +110,11 @@ pub fn command(input: TokenStream) -> TokenStream {
                 )
             }
 
+            pub fn version(mut self, version: &str) -> Self {
+                self.docs.version = Some(version.to_string());
+                self
+            }
+
             pub fn description(mut self, description: &str) -> Self {
                 self.docs.description = Some(description.to_string());
                 self
@@ -161,7 +166,7 @@ pub fn command(input: TokenStream) -> TokenStream {
                 self.docs.parents.extend_from_slice(parents);
             }
 
-            fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<(), CliError> {
+            fn complete_subcommand(&mut self, sub_idx: usize, tokens: &[String]) -> Result<Vec<CompOut>, CliError> {
                 self.subcommands[sub_idx].complete_args(tokens)
             }
 

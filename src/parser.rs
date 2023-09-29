@@ -3,15 +3,29 @@ use std::{env, fmt::Write};
 use crate::{
     cli_error::{CliError, CliResult, Exit},
     command::{CompletionMode, ParserInfo},
-    input::InputType,
+    flag::Flag,
+    input::{Input, InputType},
 };
 
 use colored::*;
 
 impl<C> Cmd for C where C: ParserInfo {}
 
+pub struct CompOut {
+    pub name: String,
+    pub desc: Option<String>,
+}
+
+fn version_flag() -> Flag<'static, bool> {
+    Flag::bool("version").description("display CLI version")
+}
+
+fn help_flag() -> Flag<'static, bool> {
+    Flag::bool("help").description("view help")
+}
+
 pub trait Cmd: ParserInfo {
-    fn print_help(&mut self) -> CliError {
+    fn gen_help(&mut self) -> CliError {
         let cmd_path = self.docs().cmd_path();
         let mut help_message = String::new();
 
@@ -23,17 +37,32 @@ pub trait Cmd: ParserInfo {
 
         writeln!(help_message, "\n").unwrap();
 
+        let mut version = version_flag();
+        let mut help = help_flag();
+        let mut built_in: Vec<&mut dyn Input> = vec![&mut help];
+        if self.docs().version.is_some() {
+            built_in.push(&mut version);
+        }
         let subcommands = self.subcommand_docs();
         writeln!(help_message, "{}", "USAGE:".bold().yellow()).unwrap();
         if subcommands.is_empty() {
             let usage = format!("{cmd_path} [options], <args>").bold();
             writeln!(help_message, "\t{usage}").unwrap();
             writeln!(help_message, "\n{}", "FLAGS:".yellow().bold()).unwrap();
-            for symbol in self.symbols() {
+
+            let width = self
+                .symbols()
+                .into_iter()
+                .map(|s| s.display_name().len() + 3)
+                .chain([10]) // --version
+                .max()
+                .unwrap();
+
+            for symbol in self.symbols().iter().chain(built_in.iter()) {
                 if symbol.type_name() == InputType::Flag {
-                    write!(help_message, "\t--{}", symbol.display_name().bold()).unwrap();
+                    write!(help_message, "\t--{:width$}", symbol.display_name().bold()).unwrap();
                     if let Some(desc) = symbol.description() {
-                        write!(help_message, ": {desc}").unwrap();
+                        write!(help_message, " {desc}").unwrap();
                     }
                     writeln!(help_message).unwrap();
                 }
@@ -41,9 +70,9 @@ pub trait Cmd: ParserInfo {
             writeln!(help_message, "\n{}", "ARGS:".yellow().bold()).unwrap();
             for symbol in self.symbols() {
                 if symbol.type_name() == InputType::Arg {
-                    write!(help_message, "\t{}", symbol.display_name().bold()).unwrap();
+                    write!(help_message, "\t{:width$}", symbol.display_name().bold()).unwrap();
                     if let Some(desc) = symbol.description() {
-                        write!(help_message, ": {desc}").unwrap();
+                        write!(help_message, " {desc}").unwrap();
                     }
                     writeln!(help_message).unwrap();
                 }
@@ -61,6 +90,29 @@ pub trait Cmd: ParserInfo {
 
                 writeln!(help_message).unwrap();
             }
+
+            writeln!(help_message, "\n{}", "FLAGS:".yellow().bold()).unwrap();
+
+            let flag_width = built_in
+                .iter()
+                .map(|s| s.display_name().len() + 3)
+                .max()
+                .unwrap();
+
+            for symbol in built_in {
+                if symbol.type_name() == InputType::Flag {
+                    write!(
+                        help_message,
+                        "\t--{:flag_width$}",
+                        symbol.display_name().bold()
+                    )
+                    .unwrap();
+                    if let Some(desc) = symbol.description() {
+                        write!(help_message, " {desc}").unwrap();
+                    }
+                    writeln!(help_message).unwrap();
+                }
+            }
         }
 
         CliError::from(help_message)
@@ -71,6 +123,7 @@ pub trait Cmd: ParserInfo {
         let args: Vec<String> = env::args().collect();
         // cmd complete shell word_idx [input]
         if args.len() >= 5 && args[1] == "complete" {
+            let name = self.docs().name.to_string();
             // going to need some serious tests here
             let shell = args[2].parse::<CompletionMode>().unwrap();
             let prompt: Vec<String> = if shell == CompletionMode::Fish {
@@ -86,15 +139,68 @@ pub trait Cmd: ParserInfo {
                     .collect()
             };
 
-            self.complete_args(&prompt[1..]).exit_silently();
+            let mut last_command_location = 0;
+
+            for (i, token) in prompt.iter().enumerate().rev() {
+                if token == &name {
+                    last_command_location = i;
+                    break;
+                }
+            }
+
+            let prompt = &prompt[last_command_location..];
+
+            match self.complete_args(&prompt[1..]) {
+                Ok(outputs) => {
+                    match shell {
+                        CompletionMode::Bash => {
+                            for out in outputs {
+                                println!("{}", out.name);
+                            }
+                        }
+                        CompletionMode::Fish => {
+                            for out in outputs {
+                                if let Some(desc) = out.desc {
+                                    println!("{}\t{}", out.name, desc);
+                                } else {
+                                    println!("{}", out.name);
+                                }
+                            }
+                        }
+                        CompletionMode::Zsh => {
+                            let comps = outputs
+                                .into_iter()
+                                .map(|out| {
+                                    if let Some(desc) = out.desc {
+                                        let desc = desc.replace('\'', "");
+                                        let desc = desc.replace('"', "");
+                                        format!("'{}:{}'", out.name, desc)
+                                    } else {
+                                        format!("'{}'", out.name)
+                                    }
+                                })
+                                .collect::<Vec<String>>()
+                                .join(" ");
+
+                            println!("_describe '{name}' \"({comps})\"");
+                        }
+                    };
+
+                    std::process::exit(0);
+                }
+                Err(error) => {
+                    std::process::exit(error.status);
+                }
+            }
         }
 
         self.parse_args(&args[1..]).exit();
     }
 
-    fn complete_args(&mut self, tokens: &[String]) -> CliResult<()> {
+    fn complete_args(&mut self, tokens: &[String]) -> CliResult<Vec<CompOut>> {
+        let mut completions = vec![];
         if tokens.is_empty() {
-            return Ok(());
+            return Ok(completions);
         }
 
         let subcommands = self.subcommand_docs();
@@ -115,21 +221,23 @@ pub trait Cmd: ParserInfo {
             }
 
             // print subcommands that begin with the token
-            if tokens.len() == 1 {
-                subcommands
-                    .iter()
-                    .filter_map(|sub| {
-                        if sub.name.starts_with(token) {
-                            Some(sub.name.to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .for_each(|sub| println!("{sub}"));
+            if tokens.len() == 1 && !tokens[0].starts_with('-') {
+                for sub in subcommands {
+                    if sub.name.starts_with(token) {
+                        let name = &sub.name;
+                        let desc = &sub.description;
+                        completions.push(CompOut {
+                            name: name.to_string(),
+                            desc: desc.to_owned(),
+                        })
+                    }
+                }
+
+                return Ok(completions);
             }
-            return Ok(());
         }
 
+        let has_version = self.docs().version.is_some();
         let mut symbols = self.symbols();
 
         let mut positional_args_so_far = 0;
@@ -155,26 +263,41 @@ pub trait Cmd: ParserInfo {
                 for symbol in &mut symbols {
                     if symbol.display_name() == value_completion[0] {
                         for completion in symbol.complete(value_completion[1])? {
-                            println!("--{}={completion}", symbol.display_name());
+                            completions.push(CompOut {
+                                name: format!("--{}={completion}", symbol.display_name()),
+                                desc: None,
+                            });
                         }
-                        return Ok(());
+                        return Ok(completions);
                     }
                 }
             }
 
+            let mut version = version_flag();
+            let mut help = help_flag();
+            let mut built_in: Vec<&mut dyn Input> = vec![&mut help];
+            if has_version {
+                built_in.push(&mut version);
+            }
+
             symbols
                 .iter()
+                .chain(built_in.iter())
                 .filter(|sym| sym.type_name() == InputType::Flag)
                 .filter(|sym| sym.display_name().starts_with(completion_token))
                 .for_each(|flag| {
                     if flag.is_bool_flag() {
-                        println!("--{}", flag.display_name());
+                        completions.push(CompOut {
+                            name: format!("--{}", flag.display_name()),
+                            desc: flag.description(),
+                        });
                     } else {
-                        println!("--{}=", flag.display_name());
+                        completions.push(CompOut {
+                            name: format!("--{}=", flag.display_name()),
+                            desc: flag.description(),
+                        });
                     }
                 });
-            // todo an interesting thing to explore later:
-            // println!(r#" _describe 'command' "('-cmd1:description1' '-cmd2:description2')" "#);
         } else {
             let arg = symbols
                 .iter_mut()
@@ -183,12 +306,15 @@ pub trait Cmd: ParserInfo {
 
             if let Some(arg) = arg {
                 for option in arg.complete(token)? {
-                    println!("{option}");
+                    completions.push(CompOut {
+                        name: option.to_string(),
+                        desc: None,
+                    });
                 }
             }
         }
 
-        Ok(())
+        Ok(completions)
     }
 
     fn parse_args(&mut self, tokens: &[String]) -> CliResult<()> {
@@ -197,19 +323,33 @@ pub trait Cmd: ParserInfo {
         let required_args = symbols.iter().filter(|f| !f.has_default()).count();
 
         if tokens.is_empty() && (required_args > 0 || !subcommands.is_empty()) {
-            return Err(self.print_help());
+            return Err(self.gen_help());
         }
 
         // try to match subcommands
-        if !subcommands.is_empty() {
+        if !tokens.is_empty() {
             let token = &tokens[0];
-            for (idx, subcommand) in subcommands.iter().enumerate() {
-                if &subcommand.name == token {
-                    return self.parse_subcommand(idx, &tokens[1..]);
-                }
+            if token == "--help" {
+                println!("{}", self.gen_help().msg);
+                return Ok(());
             }
 
-            return Err(CliError::from(format!("{token} is not a valid subcommand")));
+            if token == "--version" {
+                let docs = &self.docs();
+                if let Some(version) = &docs.version {
+                    println!("{} -- {}", docs.cmd_path(), version);
+                    return Ok(());
+                }
+            }
+            if !subcommands.is_empty() {
+                for (idx, subcommand) in subcommands.iter().enumerate() {
+                    if &subcommand.name == token {
+                        return self.parse_subcommand(idx, &tokens[1..]);
+                    }
+                }
+
+                return Err(CliError::from(format!("{token} is not a valid subcommand")));
+            }
         }
 
         let mut symbols = self.symbols();
