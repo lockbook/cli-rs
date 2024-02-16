@@ -82,8 +82,7 @@ complete -o nospace -F _{name}_complete_ {name} -E
                 r#"complete -c {name} -f --condition "not __fish_seen_subcommand_from file-command non-file-command" -a '({name} complete fish 0 (commandline -cp))'"#
             ),
             CompletionMode::Zsh => format!(
-                r#"
-#compdef {name}
+                r#"#compdef {name}
 function _{name} {{
     comp_output=$( {name} complete zsh "$(($CURRENT - 1))" "${{words[*]}}" )
     eval ${{comp_output}}
