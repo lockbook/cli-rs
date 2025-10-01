@@ -1,4 +1,4 @@
-use cli_rs::{arg::Arg, command::Command, flag::Flag, parser::Cmd};
+use cli_rs::{arg::Arg, cli_error::Exit, command::Command, flag::Flag, parser::Cmd};
 
 fn main() {
     let files = vec![
@@ -34,7 +34,8 @@ fn main() {
                 }),
         )
         .with_completions()
-        .parse();
+        .parse()
+        .exit();
 }
 
 // todo: cli-rs edit<tab> crashes

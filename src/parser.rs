@@ -1,7 +1,7 @@
 use std::{env, fmt::Write};
 
 use crate::{
-    cli_error::{CliError, CliResult, Exit},
+    cli_error::{CliError, CliResult},
     command::{CompletionMode, ParserInfo},
     flag::Flag,
     input::{Input, InputType},
@@ -119,7 +119,7 @@ pub trait Cmd: ParserInfo {
     }
 
     // split this out into a trait that is pub, make the rest not pub
-    fn parse(&mut self) {
+    fn parse(&mut self) -> CliResult<()> {
         let args: Vec<String> = env::args().collect();
         // cmd complete shell word_idx [input]
         if args.len() >= 5 && args[1] == "complete" {
@@ -186,15 +186,15 @@ pub trait Cmd: ParserInfo {
                         }
                     };
 
-                    std::process::exit(0);
+                    return Ok(())
                 }
                 Err(error) => {
-                    std::process::exit(error.status);
+                    return Err(error);
                 }
             }
         }
 
-        self.parse_args(&args[1..]).exit();
+        self.parse_args(&args[1..])
     }
 
     fn complete_args(&mut self, tokens: &[String]) -> CliResult<Vec<CompOut>> {
