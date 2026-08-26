@@ -189,7 +189,7 @@ pub trait Cmd: ParserInfo {
                         }
                     };
 
-                    return Ok(())
+                    return Ok(());
                 }
                 Err(error) => {
                     return Err(error);
