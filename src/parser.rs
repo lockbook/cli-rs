@@ -120,6 +120,9 @@ pub trait Cmd: ParserInfo {
 
     // split this out into a trait that is pub, make the rest not pub
     fn parse(&mut self) -> CliResult<()> {
+        #[cfg(windows)]
+        let _ = colored::control::set_virtual_terminal(true);
+
         let args: Vec<String> = env::args().collect();
         // cmd complete shell word_idx [input]
         if args.len() >= 5 && args[1] == "complete" {
