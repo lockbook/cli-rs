@@ -300,3 +300,24 @@ fn subcommands_mismatch() {
 
     assert_eq!(path, String::default());
 }
+
+fn flag_completions(tokens: &[&str]) -> Vec<String> {
+    let tokens: Vec<String> = tokens.iter().map(|t| t.to_string()).collect();
+    Command::name("test")
+        .input(Flag::bool("force"))
+        .input(Flag::<String>::new("editor"))
+        .handler(|_, _| Ok(()))
+        .complete_args(&tokens)
+        .unwrap()
+        .into_iter()
+        .map(|completion| completion.name)
+        .collect()
+}
+
+#[test]
+fn completion_skips_provided_flags() {
+    assert_eq!(flag_completions(&["--"]), ["--force", "--editor=", "--help"]);
+    assert_eq!(flag_completions(&["--force", "--"]), ["--editor=", "--help"]);
+    assert_eq!(flag_completions(&["-f", "--"]), ["--editor=", "--help"]);
+    assert_eq!(flag_completions(&["--editor=vim", "--"]), ["--force", "--help"]);
+}

@@ -24,6 +24,19 @@ fn help_flag() -> Flag<'static, bool> {
     Flag::bool("help").description("view help")
 }
 
+fn provided(flag: &dyn Input, tokens: &[String]) -> bool {
+    let name = flag.display_name();
+    tokens.iter().any(|token| match token.strip_prefix("--") {
+        Some(long) => long.split('=').next() == Some(name.as_str()),
+        None => {
+            flag.is_bool_flag()
+                && token.len() == 2
+                && token.starts_with('-')
+                && token[1..].eq_ignore_ascii_case(&name[..1])
+        }
+    })
+}
+
 pub trait Cmd: ParserInfo {
     fn gen_help(&mut self) -> CliError {
         let cmd_path = self.docs().cmd_path();
@@ -288,6 +301,7 @@ pub trait Cmd: ParserInfo {
                 .chain(built_in.iter())
                 .filter(|sym| sym.type_name() == InputType::Flag)
                 .filter(|sym| sym.display_name().starts_with(completion_token))
+                .filter(|sym| !provided(&***sym, &tokens[..tokens.len() - 1]))
                 .for_each(|flag| {
                     if flag.is_bool_flag() {
                         completions.push(CompOut {
