@@ -171,21 +171,35 @@ pub trait Cmd: ParserInfo {
                             }
                         }
                         CompletionMode::Zsh => {
-                            let comps = outputs
-                                .into_iter()
-                                .map(|out| {
-                                    if let Some(desc) = out.desc {
-                                        let desc = desc.replace('\'', "");
-                                        let desc = desc.replace('"', "");
-                                        format!("'{}:{}'", out.name, desc)
-                                    } else {
-                                        format!("'{}'", out.name)
-                                    }
-                                })
-                                .collect::<Vec<String>>()
-                                .join(" ");
+                            let describe = |outputs: Vec<CompOut>, options: &str| {
+                                let comps = outputs
+                                    .into_iter()
+                                    .map(|out| {
+                                        if let Some(desc) = out.desc {
+                                            let desc = desc.replace('\'', "");
+                                            let desc = desc.replace('"', "");
+                                            format!("'{}:{}'", out.name, desc)
+                                        } else {
+                                            format!("'{}'", out.name)
+                                        }
+                                    })
+                                    .collect::<Vec<String>>()
+                                    .join(" ");
 
-                            println!("_describe '{name}' \"({comps})\"");
+                                format!("_describe '{name}' \"({comps})\"{options}")
+                            };
+                            let (open, closed): (Vec<_>, Vec<_>) = outputs
+                                .into_iter()
+                                .partition(|out| out.name.ends_with(['/', '=']));
+
+                            let mut commands = vec![];
+                            if !closed.is_empty() || open.is_empty() {
+                                commands.push(describe(closed, ""));
+                            }
+                            if !open.is_empty() {
+                                commands.push(describe(open, " -S ''"));
+                            }
+                            println!("{}", commands.join("; "));
                         }
                     };
 
